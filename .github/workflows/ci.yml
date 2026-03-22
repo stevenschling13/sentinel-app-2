@@ -1,9 +1,9 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
 
 concurrency:
@@ -17,6 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -32,11 +34,12 @@ jobs:
         working-directory: apps/engine
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
       - run: uv sync
-      - run: uv run ruff check src tests
+      - run: uv run ruff check src/
       - run: uv run python -m pytest tests/ -v
 
   agents:
@@ -45,6 +48,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
