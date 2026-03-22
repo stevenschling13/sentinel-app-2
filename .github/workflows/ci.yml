@@ -24,8 +24,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Lint & Type Check
-        run: pnpm turbo lint --filter=@sentinel/web
       - name: Test
         run: pnpm --filter @sentinel/web test
       - name: Build

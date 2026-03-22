@@ -1,8 +1,8 @@
-import express from 'express';
+import express, { type Express } from 'express';
 import cors from 'cors';
 import { getMissingAgentEnvVars } from './env.js';
 
-export const app = express();
+export const app: Express = express();
 
 app.use(cors({ origin: process.env.WEB_URL || 'http://localhost:3000' }));
 app.use(express.json());
