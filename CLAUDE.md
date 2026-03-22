@@ -45,6 +45,19 @@ cd apps/agents && pnpm dev     # Agents only (port 3001)
 - **Strategy scanning**: Engine runs 12 strategies across watchlist tickers. Agents orchestrate scans on a cycle.
 - **Risk management**: Circuit breakers at 10% (soft) and 15% (hard) drawdown. Max 5% per position, 20% per sector.
 
+## Deployment
+
+| Service | Platform | URL |
+|---------|----------|-----|
+| Web | Vercel | sentinel-app-2.vercel.app |
+| Engine | Railway | engine-production-8052.up.railway.app |
+| Agents | Railway | agents-production-633a.up.railway.app |
+| Database | Supabase | luwyjfwauljwsfsnwiqb.supabase.co |
+
+- **Deploy engine/agents**: `railway up --service <id> --detach` from monorepo root
+- **Deploy web**: Push to `main` triggers Vercel auto-deploy
+- **Dockerfiles**: Use monorepo-root-relative paths (Railway build context is repo root)
+
 ## Environment Variables
 
 Copy `.env.example` to `.env` and fill in credentials. Required services:
