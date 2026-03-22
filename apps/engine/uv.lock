@@ -1025,6 +1025,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "websockets" },
 ]
 
 [package.optional-dependencies]
@@ -1062,6 +1063,7 @@ requires-dist = [
     { name = "respx", marker = "extra == 'dev'", specifier = ">=0.22" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34" },
+    { name = "websockets", specifier = ">=14" },
 ]
 provides-extras = ["dev"]
 

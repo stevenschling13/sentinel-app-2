@@ -17,6 +17,7 @@ dependencies = [
     "pandas>=2",
     "python-dotenv>=1",
     "postgrest>=0.19",
+    "websockets>=14",
 ]
 
 [project.optional-dependencies]

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DollarSign, TrendingUp, BarChart3, AlertTriangle, Zap } from 'lucide-react';
 import { MetricCard } from '@/components/dashboard/metric-card';
 import { AlertFeed } from '@/components/dashboard/alert-feed';
@@ -8,6 +8,8 @@ import { PriceTicker } from '@/components/dashboard/price-ticker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { OfflineBanner } from '@/components/ui/offline-banner';
 import { useAppStore } from '@/stores/app-store';
+import { useRealtimeAlerts } from '@/hooks/use-realtime-alerts';
+import { useRealtimeSignals } from '@/hooks/use-realtime-signals';
 import type { MarketQuote, BrokerAccount } from '@/lib/engine-client';
 import { cn } from '@/lib/utils';
 import { engineUrl, engineHeaders } from '@/lib/engine-fetch';
@@ -50,6 +52,40 @@ export default function DashboardPage() {
   const [account, setAccount] = useState<BrokerAccount | null>(null);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [recentSignals, setRecentSignals] = useState<SignalItem[]>([]);
+
+  const { alerts: rtAlerts, isSubscribed: alertsSub } = useRealtimeAlerts();
+  const { signals: rtSignals, isSubscribed: signalsSub } = useRealtimeSignals();
+  const realtimeConnected = alertsSub || signalsSub;
+
+  // Merge REST alerts with realtime alerts (dedup by id, realtime first)
+  const mergedAlerts = useMemo(() => {
+    const restIds = new Set(alerts.map((a) => a.id));
+    const fromRt: AlertItem[] = rtAlerts
+      .filter((a) => !restIds.has(a.id))
+      .map((a) => ({
+        id: a.id,
+        severity: a.severity,
+        title: a.title,
+        message: a.message,
+        triggered_at: a.created_at,
+      }));
+    return [...fromRt, ...alerts];
+  }, [alerts, rtAlerts]);
+
+  // Merge REST signals with realtime signals (dedup by id)
+  const mergedSignals = useMemo(() => {
+    const restKeys = new Set(recentSignals.map((s) => `${s.ticker}-${s.ts}`));
+    const fromRt: SignalItem[] = rtSignals
+      .filter((s) => !restKeys.has(`${s.ticker}-${s.created_at}`))
+      .map((s) => ({
+        ticker: s.ticker,
+        side: s.side,
+        reason: s.reason ?? '',
+        strength: s.signal_strength != null ? Number(s.signal_strength) : null,
+        ts: s.created_at,
+      }));
+    return [...fromRt, ...recentSignals].slice(0, 10);
+  }, [recentSignals, rtSignals]);
 
   const fetchPrices = useCallback(async () => {
     try {
@@ -229,16 +265,24 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Active Signals
             </CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
+            <div className="flex items-center gap-2">
+              {realtimeConnected && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-red-400 uppercase">
+                  <span className="h-1 w-1 rounded-full bg-red-500 animate-pulse" />
+                  Live
+                </span>
+              )}
+              <Zap className="h-4 w-4 text-muted-foreground" />
+            </div>
           </CardHeader>
           <CardContent>
-            {recentSignals.length === 0 ? (
+            {mergedSignals.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 No recent signals. Strategies generate signals during market hours.
               </p>
             ) : (
               <div className="space-y-2">
-                {recentSignals.map((s) => (
+                {mergedSignals.map((s) => (
                   <div
                     key={`${s.ticker}-${s.ts}`}
                     className="flex items-center justify-between border-b border-border/50 py-1.5 last:border-0"
@@ -268,7 +312,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <AlertFeed alerts={alerts} />
+        <AlertFeed alerts={mergedAlerts} />
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from src.config import Settings
@@ -17,6 +17,7 @@ from src.db import get_db
 
 if TYPE_CHECKING:
     from src.data.polygon_client import PolygonBar
+    from src.data.price_cache import PriceCache
 
 logger = logging.getLogger(__name__)
 
@@ -106,15 +107,50 @@ async def ingest_data(request: IngestRequest) -> IngestResponse:
     return IngestResponse(ingested=result.ingested, errors=result.errors)
 
 
+_PRICE_CACHE_MAX_AGE = 120.0  # seconds — treat cached prices as fresh
+
+
+def _get_price_cache(request: Request) -> PriceCache | None:
+    """Return the app-level PriceCache, if available."""
+    return getattr(request.app.state, "price_cache", None)
+
+
+def _cache_to_quote(ticker: str, entry: dict) -> MarketQuote:
+    """Build a MarketQuote from a PriceCache entry."""
+    return MarketQuote(
+        ticker=ticker,
+        open=entry["open"],
+        high=entry["high"],
+        low=entry["low"],
+        close=entry["price"],
+        volume=entry["volume"],
+        timestamp=entry["timestamp"].isoformat(),
+        change=round(entry["price"] - entry["open"], 2),
+        change_pct=entry.get("change_pct", 0.0),
+    )
+
+
 @router.get("/quote/{ticker}", response_model=MarketQuote)
-async def get_quote(ticker: str) -> MarketQuote:
-    """Fetch the latest price for a ticker from Polygon.io."""
+async def get_quote(ticker: str, request: Request) -> MarketQuote:
+    """Fetch the latest price for a ticker.
+
+    Checks the real-time PriceCache first; falls back to Polygon REST.
+    """
+    ticker = ticker.upper()
+    cache = _get_price_cache(request)
+    if cache is not None:
+        age = cache.age(ticker)
+        if age is not None and age < _PRICE_CACHE_MAX_AGE:
+            entry = cache.get(ticker)
+            if entry is not None:
+                return _cache_to_quote(ticker, entry)
+
     polygon = _get_polygon()
     try:
-        bar = await polygon.get_latest_price(ticker.upper(), interactive=True)
+        bar = await polygon.get_latest_price(ticker, interactive=True)
         if not bar:
             raise HTTPException(status_code=404, detail=f"No data for {ticker}")
-        return _bar_to_quote(ticker.upper(), bar)
+        return _bar_to_quote(ticker, bar)
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code == 429:
             raise HTTPException(
@@ -126,29 +162,48 @@ async def get_quote(ticker: str) -> MarketQuote:
 
 
 @router.get("/quotes", response_model=list[MarketQuote])
-async def get_quotes(tickers: str = "AAPL,MSFT,GOOGL,AMZN,NVDA,TSLA,META,SPY") -> list[MarketQuote]:
+async def get_quotes(
+    request: Request,
+    tickers: str = "AAPL,MSFT,GOOGL,AMZN,NVDA,TSLA,META,SPY",
+) -> list[MarketQuote]:
     """Fetch latest prices for multiple tickers (comma-separated).
 
-    Uses concurrent requests with graceful error handling so browser traffic
-    does not stall behind sequential provider calls.
+    Serves prices from the real-time PriceCache when fresh (< 120 s),
+    falling back to Polygon REST for any tickers missing from the cache.
     """
     ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
-    polygon = _get_polygon()
-    try:
-        results = await asyncio.gather(
-            *(polygon.get_latest_price(t, interactive=True) for t in ticker_list),
-            return_exceptions=True,
-        )
-        quotes: list[MarketQuote] = []
-        for ticker, result in zip(ticker_list, results, strict=True):
-            if isinstance(result, BaseException):
-                logger.warning("Failed to fetch %s: %s", ticker, result)
-                continue
-            if result is not None:
-                quotes.append(_bar_to_quote(ticker, result))
-        return quotes
-    finally:
-        await polygon.close()
+
+    quotes: list[MarketQuote] = []
+    need_polygon: list[str] = []
+    cache = _get_price_cache(request)
+
+    for t in ticker_list:
+        if cache is not None:
+            age = cache.age(t)
+            if age is not None and age < _PRICE_CACHE_MAX_AGE:
+                entry = cache.get(t)
+                if entry is not None:
+                    quotes.append(_cache_to_quote(t, entry))
+                    continue
+        need_polygon.append(t)
+
+    if need_polygon:
+        polygon = _get_polygon()
+        try:
+            results = await asyncio.gather(
+                *(polygon.get_latest_price(t, interactive=True) for t in need_polygon),
+                return_exceptions=True,
+            )
+            for ticker, result in zip(need_polygon, results, strict=True):
+                if isinstance(result, BaseException):
+                    logger.warning("Failed to fetch %s: %s", ticker, result)
+                    continue
+                if result is not None:
+                    quotes.append(_bar_to_quote(ticker, result))
+        finally:
+            await polygon.close()
+
+    return quotes
 
 
 @router.get("/bars/{ticker}", response_model=list[MarketBar])

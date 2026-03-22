@@ -12,6 +12,13 @@ export const REQUIRED_AGENT_ENV_VARS = [
 ] as const;
 
 /**
+ * Optional environment variables (not validated, but documented here):
+ * - AUTO_CYCLE: set to "true" to start the orchestrator cycle loop on boot
+ * - AGENTS_PORT / PORT: HTTP listen port (default 3001)
+ * - WEB_URL: allowed CORS origin (default http://localhost:3000)
+ */
+
+/**
  * Returns the subset of {@link REQUIRED_AGENT_ENV_VARS} that are not set.
  * @param env - Process environment to inspect (defaults to `process.env`).
  */

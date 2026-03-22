@@ -1,0 +1,1233 @@
+● Update(C:\Users\steve\Projects\personal\Stock Trading App\apps\agents\src\orchestrator.ts)
+  ⎿  Added 2 lines
+      147      const results: AgentResult[] = [];
+      148      logger.info('orchestrator.cycle.start', { cycleCount: this.state.cycleCount });
+      149
+      150 +    eventBus.publish('cycle.started', { cycleCount: this.state.cycleCount }).catch(() => {});
+      151 +
+      152      for (const role of this.cycleSequence) {
+      153        if (this.state.halted && role === 'execution_monitor') {
+      154          logger.warn('orchestrator.agent.skipped', { role, reason: 'halted' });
+  ⎿  3 PostToolUse hooks ran
+
+                                                                                            04:56 PM claude-opus-4-6
+● Again, false positives — this file is not a Vercel Workflow. Continuing.
+
+● Update(C:\Users\steve\Projects\personal\Stock Trading App\apps\agents\src\orchestrator.ts)
+  ⎿  Added 9 lines
+      168        totalCount: results.length,
+      169      });
+      170      this.state.lastCycleAt = new Date().toISOString();
+      171 +
+      172 +    eventBus
+      173 +      .publish('cycle.completed', {
+      174 +        cycleCount: this.state.cycleCount,
+      175 +        successCount,
+      176 +        totalCount: results.length,
+      177 +      })
+      178 +      .catch(() => {});
+      179 +
+      180      return results;
+      181    }
+      182
+  ⎿  3 PostToolUse hooks ran
+
+                                                                                            04:56 PM claude-opus-4-6
+● False positives — orchestrator.ts is a plain Node.js service, not a Vercel Workflow. Now let me verify the Python event
+  bus compiles and check TypeScript:
+
+● Bash(cd "C:/Users/steve/Projects/personal/Stock Trading App/apps/engine" && python -m py_compile src/events/redis_bus.py
+      && echo "Clean")
+  ⎿  Clean
+  ⎿  4 PostToolUse hooks ran
+
+● Bash(cd "C:/Users/steve/Projects/personal/Stock Trading App" && npx tsc --noEmit -p apps/agents/tsconfig.json 2>&1 | head
+      -10)
+  ⎿  (No output)
+  ⎿  (timeout 30s)
+  ⎿  4 PostToolUse hooks ran
+
+                                                                                            04:56 PM claude-opus-4-6
+● Both clean. Phase 1 is complete.
+
+                                                                                            04:57 PM claude-opus-4-6
+● Phase 1 is done. Now onto Phase 2: Intelligence. Let me create the Phase 2 tasks.
+
+                                                                                            04:57 PM claude-opus-4-6
+● Phase 2.1: AI SDK v6 Upgrade — the biggest change. Let me read the current agent implementation and tool executor.
+
+● Read(apps\agents\src\agent.ts)
+  ⎿  Read 189 lines
+
+● Read(apps\agents\src\tools.ts)
+  ⎿  Read 219 lines
+
+● Read(apps\agents\src\tool-executor.ts)
+  ⎿  Read 317 lines
+
+                                                                                            04:58 PM claude-opus-4-6
+● ★ Insight ─────────────────────────────────────
+  The AI SDK v6 migration is significant but clean:
+  1. Tools: Anthropic's input_schema JSON Schema → AI SDK's tool() with Zod inputSchema. AI SDK calls execute() directly —
+  the ToolExecutor.dispatch switch can become individual execute functions per tool.
+  2. Agent loop: The manual for (let turn...) loop with messages.push() → AI SDK's generateText with tools and stopWhen:
+  stepCountIs(10). AI SDK handles the multi-turn tool loop internally.
+  3. Model: 'claude-sonnet-4-20250514' → anthropic('claude-sonnet-4-20250514') via @ai-sdk/anthropic (since Railway, not
+  Vercel).
+  ─────────────────────────────────────────────────
+
+  This is where I'd like your input on a meaningful design decision, Steven.
+
+  ---
+  Design decision: Tool execution architecture
+
+  I've set up the AI SDK migration. The current ToolExecutor uses a monolithic dispatch() switch that routes tool names to
+  methods. AI SDK v6 wants each tool to have its own execute() function inline. Two approaches:
+
+  Option A — Inline execute: Each tool definition includes its own execute function with the EngineClient captured in
+  closure. Simpler, but tools.ts becomes large.
+
+  Option B — Keep ToolExecutor as dependency injection point: Tools reference the executor, which keeps testability (you can
+   mock the executor in tests). Slightly more indirection but preserves the existing test pattern.
+
+  Given that you already have tests mocking the executor (the orchestrator constructor accepts executor?: ToolExecutor),
+  I'll go with Option B — tools get their execute from the executor but are defined using AI SDK's tool() + Zod.
+
+  Let me implement:
+
+● Bash(cd "C:/Users/steve/Projects/personal/Stock Trading App/apps/agents" && npm ls ai @ai-sdk/anthropic 2>&1 | head -10)
+  ⎿  @sentinel/agents@0.1.0 C:\Users\steve\Projects\personal\Stock Trading App\apps\agents
+     `-- (empty)
+  ⎿  4 PostToolUse hooks ran
+
+                                                                                            04:58 PM claude-opus-4-6
+● Need to install the AI SDK packages:
+
+● Bash(cd "C:/Users/steve/Projects/personal/Stock Trading App/apps/agents" && pnpm add ai @ai-sdk/anthropic 2>&1 | tail -5)
+  ⎿  ../..                                    |   +9 +
+     ../.. prepare$ husky
+     ../.. prepare: Done
+     Done in 34s using pnpm v10.32.1
+  ⎿  (timeout 1m)
+  ⎿  4 PostToolUse hooks ran
+
+                                                                                            04:59 PM claude-opus-4-6
+● Let me check the current AI SDK v6 API to ensure correct usage:
+
+● Fetch(url: "https://sdk.vercel.ai/docs/reference/ai-sdk-core/generate-text", prompt: "Show me the full generateText API
+       signature including: model parameter, tools parameter, toolChoice, stopWhen, system, messages/prompt. Show the tool()
+        function signature with inputSchema (Zod), execute function. Show the stopCountIs import. Show exact import paths
+       for all of these.")
+  ⎿  Received 729 bytes (301 Moved Permanently)
+REDIRECT DETECTED: The URL redirects to a different host.
+
+Original URL: https://sdk.vercel.ai/docs/reference/ai-sdk-core/generate-text
+Redirect URL: https://ai-sdk.dev/docs/reference/ai-sdk-core/generate-text
+Status: 301 Moved Permanently
+
+To complete your request, I need to fetch content from the redirected URL. Please use WebFetch again with these
+parameters:
+- url: "https://ai-sdk.dev/docs/reference/ai-sdk-core/generate-text"
+- prompt: "Show me the full generateText API signature including: model parameter, tools parameter, toolChoice,
+stopWhen, system, messages/prompt. Show the tool() function signature with inputSchema (Zod), execute function. Show
+the stopCountIs import. Show exact import paths for all of these."
+
+● Fetch(url: "https://sdk.vercel.ai/docs/reference/ai-sdk-core/tool", prompt: "Show me the exact tool() function API: import
+        path, parameters (inputSchema with Zod, description, execute function signature). Show a complete example of
+       defining a tool with Zod schema and execute.")
+  ⎿  Received 618 bytes (301 Moved Permanently)
+REDIRECT DETECTED: The URL redirects to a different host.
+
+Original URL: https://sdk.vercel.ai/docs/reference/ai-sdk-core/tool
+Redirect URL: https://ai-sdk.dev/docs/reference/ai-sdk-core/tool
+Status: 301 Moved Permanently
+
+To complete your request, I need to fetch content from the redirected URL. Please use WebFetch again with these
+parameters:
+- url: "https://ai-sdk.dev/docs/reference/ai-sdk-core/tool"
+- prompt: "Show me the exact tool() function API: import path, parameters (inputSchema with Zod, description, execute
+function signature). Show a complete example of defining a tool with Zod schema and execute."
+
+● Fetch(url: "https://ai-sdk.dev/docs/reference/ai-sdk-core/generate-text", prompt: "Show me the full generateText API:
+       import path, all parameters (model, tools, toolChoice, stopWhen, system, prompt/messages, maxSteps or equivalent).
+       Show how stopWhen works with stepCountIs. Show exact imports from 'ai' package.")
+  ⎿  Received 794.6KB (200 OK)
+# generateText API Reference
+
+## Import
+```typescript
+import { generateText } from 'ai';
+```
+
+## Core Parameters
+
+**model** (required)
+Language model instance, e.g., `anthropic('claude-sonnet-4.5')`
+
+**prompt** or **messages** (required)
+Input prompt as string or array of conversation messages
+
+**system** (optional)
+"The system prompt to use that specifies the behavior of the model"
+
+**tools** (optional)
+"Tools that are accessible to and can be called by the model"
+
+**toolChoice** (optional)
+Options: `"auto"` | `"none"` | `"required"` | `{ "type": "tool", "toolName": string }`
+
+**stopWhen** (optional)
+"Condition for stopping the generation when there are tool results" - accepts `StopCondition` or array of conditions
+
+## stopWhen with stepCountIs
+
+The documentation shows `stopWhen: stepCountIs(1)` as the default behavior. This import pattern is referenced:
+
+```typescript
+import { stepCountIs } from 'ai';
+```
+
+`stepCountIs(1)` stops generation after a single step completes with tool results.
+
+## Additional Key Parameters
+
+- **maxOutputTokens** - token limit for generation
+- **temperature/topP/topK** - sampling parameters
+- **maxRetries** - retry configuration (default: 2)
+- **onStepFinish** - callback when step completes
+- **onFinish** - callback when entire generation completes
+
+## Return Value
+
+Returns object containing `text`, `toolCalls`, `toolResults`, `finishReason`, `usage`, and aggregated `totalUsage`
+across all steps.
+
+● Fetch(url: "https://ai-sdk.dev/docs/reference/ai-sdk-core/tool", prompt: "Show me the exact tool() function: import path,
+       all parameters (inputSchema, description, execute), return type. Show a complete example with Zod schema and execute
+       function.")
+  ⎿  Received 342.7KB (200 OK)
+# The `tool()` Function
+
+## Import Path
+```typescript
+import { tool } from 'ai';
+```
+
+## Function Signature
+
+The `tool()` helper infers input types for the `execute` method. It accepts a configuration object with these key
+parameters:
+
+- **`description`**: string describing the tool's purpose
+- **`inputSchema`**: Zod or JSON schema defining expected inputs
+- **`execute`**: async function receiving typed inputs
+- **`outputSchema`** (optional): schema for return type inference
+- **`title`** (optional): human-readable tool name
+
+## Complete Example
+
+```typescript
+import { tool } from 'ai';
+import { z } from 'zod';
+
+export const weatherTool = tool({
+  description: 'Get the weather in a location',
+  inputSchema: z.object({
+    location: z.string().describe('The location to get the weather for'),
+  }),
+  execute: async ({ location }) => ({
+    location,
+    temperature: 72 + Math.floor(Math.random() * 21) - 10,
+  }),
+});
+```
+
+## Key Points
+
+The documentation notes: **"location below is inferred to be a string"** — demonstrating TypeScript automatically
+derives parameter types from your schema without manual type annotations.
+
+The function returns the tool object itself, enabling seamless integration with language models for tool calling.
+
+                                                                                            05:00 PM claude-opus-4-6
+● Now let me also check the @ai-sdk/anthropic provider setup:
+
+● Fetch(url: "https://ai-sdk.dev/docs/reference/ai-sdk-anthropic", prompt: "Show me how to import and create the anthropic
+       provider. Show the createAnthropic function, how to pass apiKey, and how to use it with model IDs like
+       claude-sonnet-4-20250514. Show exact import path.")
+  ⎿  Error: Request failed with status code 404
+
+● Fetch(url: "https://ai-sdk.dev/docs/foundations/providers-and-models", prompt: "Show how to import and configure
+       @ai-sdk/anthropic. Show createAnthropic() with apiKey, and how to reference model IDs. Show exact import paths.")
+  ⎿  Received 629.5KB (200 OK)
+# Anthropic Provider Setup
+
+Based on the documentation, here's how to configure the Anthropic provider:
+
+## Installation & Import
+
+```javascript
+import { createAnthropic } from '@ai-sdk/anthropic';
+```
+
+## Creating an Instance
+
+Initialize the provider with your API key:
+
+```javascript
+const anthropic = createAnthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY
+});
+```
+
+## Accessing Models
+
+Reference specific model IDs through the initialized instance:
+
+```javascript
+const model = anthropic('claude-opus-4-1');
+```
+
+## Available Models
+
+The documentation lists several Anthropic models including:
+- `claude-opus-4-6`
+- `claude-sonnet-4-6`
+- `claude-opus-4-5`
+- `claude-opus-4-1`
+- `claude-opus-4-0`
+- `claude-sonnet-4-0`
+
+These models support capabilities like image input, object generation, tool usage, and tool streaming according to the
+capabilities table shown in the Providers and Models foundation documentation.
+
+                                                                                            05:01 PM claude-opus-4-6
+● Good, now I have the correct API. Let me also check what Zod version — the agents package has zod@4.3.6 which uses z from
+  zod/v4:
+
+● Bash(cd "C:/Users/steve/Projects/personal/Stock Trading App/apps/agents" && node -e "const z = require('zod');
+      console.log(z.z ? 'zod v4 (has z.z)' : 'zod v3')" 2>&1 || node -e "import('zod').then(m =>
+      console.log(Object.keys(m).slice(0,5)))" 2>&1)
+  ⎿  zod v4 (has z.z)
+  ⎿  4 PostToolUse hooks ran
+
+● Bash(cd "C:/Users/steve/Projects/personal/Stock Trading App/apps/agents" && node -e "const {z} = require('zod');
+      console.log(typeof z.object, typeof z.string, typeof z.array)" 2>&1)
+  ⎿  function function function
+  ⎿  4 PostToolUse hooks ran
+
+                                                                                            05:02 PM claude-opus-4-6
+● Good — z.object, z.string, etc. work from zod v4. Now let me rewrite the tools file with AI SDK format:
+
+● Read(apps\agents\src\tools.ts)
+  ⎿  Read 219 lines
+
+                                                                                            05:02 PM claude-opus-4-6
+● Now I'll rewrite tools.ts with AI SDK tool() + Zod schemas. The execute functions will delegate to the ToolExecutor which
+  remains the injection point:
+
+● Write(C:\Users\steve\Projects\personal\Stock Trading App\apps\agents\src\tools.ts)
+  ⎿  Added 145 lines, removed 183 lines
+        1  /**
+        2 - * Tool definitions for Claude agent function calling.
+        3 - * Each agent has access to specific tools based on its role.
+        2 + * AI SDK v6 tool definitions with Zod schemas.
+        3 + *
+        4 + * Each tool uses `tool()` from the AI SDK with typed `inputSchema` (Zod)
+        5 + * and an `execute` function that delegates to the ToolExecutor.
+        6 + *
+        7 + * The ToolExecutor is injected at creation time via `createToolsForAgent()`,
+        8 + * preserving testability (mock the executor in tests).
+        9   */
+       10
+        6 -import Anthropic from '@anthropic-ai/sdk';
+       11 +import { tool, type CoreTool } from 'ai';
+       12 +import { z } from 'zod';
+       13 +import type { ToolExecutor } from './tool-executor.js';
+       14 +import type { AgentRole } from './types.js';
+       15
+        8 -// Tool parameter schemas using Anthropic's format
+        9 -export const TOOL_DEFINITIONS: Anthropic.Tool[] = [
+       10 -  // Market Data Tools
+       11 -  {
+       12 -    name: 'get_market_data',
+       13 -    description:
+       14 -      'Fetch current market data (prices, volume, indicators) for given tickers. Returns OHLCV data and ba
+          -sic technical indicators.',
+       15 -    input_schema: {
+       16 -      type: 'object' as const,
+       17 -      properties: {
+       18 -        tickers: {
+       19 -          type: 'array',
+       20 -          items: { type: 'string' },
+       21 -          description: 'List of ticker symbols (e.g., ["AAPL", "MSFT"])',
+       22 -        },
+       23 -        timeframe: {
+       24 -          type: 'string',
+       25 -          enum: ['1m', '5m', '15m', '1h', '1d', '1w'],
+       26 -          description: 'Data timeframe (default: 1d)',
+       27 -        },
+       28 -      },
+       29 -      required: ['tickers'],
+       30 -    },
+       31 -  },
+       32 -  {
+       33 -    name: 'get_market_sentiment',
+       34 -    description:
+       35 -      'Analyze overall market sentiment based on breadth, volatility indices, and sector performance.',
+       36 -    input_schema: {
+       37 -      type: 'object' as const,
+       38 -      properties: {
+       39 -        include_sectors: {
+       40 -          type: 'boolean',
+       41 -          description: 'Include per-sector analysis (default: true)',
+       42 -        },
+       43 -      },
+       44 -      required: [],
+       45 -    },
+       46 -  },
+       16 +// ── Tool factory ────────────────────────────────────────────────
+       17
+       48 -  // Strategy Tools
+       49 -  {
+       50 -    name: 'run_strategy_scan',
+       51 -    description: 'Run trading strategies against current market data and return generated signals.',
+       52 -    input_schema: {
+       53 -      type: 'object' as const,
+       54 -      properties: {
+       55 -        strategies: {
+       56 -          type: 'array',
+       57 -          items: { type: 'string' },
+       58 -          description:
+       59 -            'Strategy names to run (e.g., ["sma_crossover", "rsi_momentum"]). Empty = run all.',
+       60 -        },
+       61 -        tickers: {
+       62 -          type: 'array',
+       63 -          items: { type: 'string' },
+       64 -          description: 'Tickers to scan. Empty = scan watchlist.',
+       65 -        },
+       66 -      },
+       67 -      required: [],
+       68 -    },
+       69 -  },
+       70 -  {
+       71 -    name: 'get_strategy_info',
+       72 -    description:
+       73 -      'Get details about available trading strategies including parameters and families.',
+       74 -    input_schema: {
+       75 -      type: 'object' as const,
+       76 -      properties: {
+       77 -        family: {
+       78 -          type: 'string',
+       79 -          description: 'Filter by strategy family (e.g., "trend_following")',
+       80 -        },
+       81 -      },
+       82 -      required: [],
+       83 -    },
+       84 -  },
+       18 +/**
+       19 + * Create the full tool map bound to a specific executor instance.
+       20 + * Each tool's `execute` delegates to the executor methods.
+       21 + */
+       22 +export function createAllTools(executor: ToolExecutor): Record<string, CoreTool> {
+       23 +  return {
+       24 +    get_market_data: tool({
+       25 +      description:
+       26 +        'Fetch current market data (prices, volume, indicators) for given tickers. Returns OHLCV data and
+          +basic technical indicators.',
+       27 +      inputSchema: z.object({
+       28 +        tickers: z.array(z.string()).describe('List of ticker symbols (e.g., ["AAPL", "MSFT"])'),
+       29 +        timeframe: z
+       30 +          .enum(['1m', '5m', '15m', '1h', '1d', '1w'])
+       31 +          .optional()
+       32 +          .describe('Data timeframe (default: 1d)'),
+       33 +      }),
+       34 +      execute: async (input) => executor.getMarketData(input),
+       35 +    }),
+       36
+       86 -  // Risk Tools
+       87 -  {
+       88 -    name: 'assess_portfolio_risk',
+       89 -    description:
+       90 -      'Run comprehensive risk assessment on current portfolio. Returns drawdown, concentration, and limit
+          -status.',
+       91 -    input_schema: {
+       92 -      type: 'object' as const,
+       93 -      properties: {},
+       94 -      required: [],
+       95 -    },
+       96 -  },
+       97 -  {
+       98 -    name: 'calculate_position_size',
+       99 -    description: 'Calculate optimal position size for a proposed trade using risk-adjusted sizing.',
+      100 -    input_schema: {
+      101 -      type: 'object' as const,
+      102 -      properties: {
+      103 -        ticker: { type: 'string', description: 'Ticker symbol' },
+      104 -        price: { type: 'number', description: 'Current price' },
+      105 -        method: {
+      106 -          type: 'string',
+      107 -          enum: ['fixed_fraction', 'volatility_target', 'kelly_criterion'],
+      108 -          description: 'Sizing method',
+      109 -        },
+      110 -      },
+      111 -      required: ['ticker', 'price'],
+      112 -    },
+      113 -  },
+      114 -  {
+      115 -    name: 'check_risk_limits',
+      116 -    description: 'Check if a proposed trade passes all risk limits (position, sector, drawdown).',
+      117 -    input_schema: {
+      118 -      type: 'object' as const,
+      119 -      properties: {
+      120 -        ticker: { type: 'string' },
+      121 -        shares: { type: 'number' },
+      122 -        price: { type: 'number' },
+      123 -        side: { type: 'string', enum: ['buy', 'sell'] },
+      124 -      },
+      125 -      required: ['ticker', 'shares', 'price', 'side'],
+      126 -    },
+      127 -  },
+       37 +    get_market_sentiment: tool({
+       38 +      description:
+       39 +        'Analyze overall market sentiment based on breadth, volatility indices, and sector performance.',
+       40 +      inputSchema: z.object({
+       41 +        include_sectors: z.boolean().optional().describe('Include per-sector analysis (default: true)'),
+       42 +      }),
+       43 +      execute: async () => executor.getMarketSentiment(),
+       44 +    }),
+       45
+      129 -  // Execution Tools
+      130 -  {
+      131 -    name: 'submit_order',
+      132 -    description: 'Submit a trade order (paper or live based on broker mode).',
+      133 -    input_schema: {
+      134 -      type: 'object' as const,
+      135 -      properties: {
+      136 -        ticker: { type: 'string' },
+      137 -        side: { type: 'string', enum: ['buy', 'sell'] },
+      138 -        quantity: { type: 'number' },
+      139 -        order_type: { type: 'string', enum: ['market', 'limit'] },
+      140 -        limit_price: { type: 'number', description: 'Required for limit orders' },
+      141 -      },
+      142 -      required: ['ticker', 'side', 'quantity', 'order_type'],
+      143 -    },
+      144 -  },
+      145 -  {
+      146 -    name: 'get_open_orders',
+      147 -    description: 'Get all currently open/pending orders.',
+      148 -    input_schema: {
+      149 -      type: 'object' as const,
+      150 -      properties: {},
+      151 -      required: [],
+      152 -    },
+      153 -  },
+       46 +    run_strategy_scan: tool({
+       47 +      description: 'Run trading strategies against current market data and return generated signals.',
+       48 +      inputSchema: z.object({
+       49 +        strategies: z
+       50 +          .array(z.string())
+       51 +          .optional()
+       52 +          .describe('Strategy names to run. Empty = run all.'),
+       53 +        tickers: z.array(z.string()).optional().describe('Tickers to scan. Empty = scan watchlist.'),
+       54 +      }),
+       55 +      execute: async (input) => executor.runStrategyScan(input),
+       56 +    }),
+       57
+      155 -  // Research Tools
+      156 -  {
+      157 -    name: 'analyze_ticker',
+      158 -    description:
+      159 -      'Perform deep analysis on a specific ticker: technical setup, trend, support/resistance, volume prof
+          -ile.',
+      160 -    input_schema: {
+      161 -      type: 'object' as const,
+      162 -      properties: {
+      163 -        ticker: { type: 'string', description: 'Ticker symbol to analyze' },
+      164 -        depth: {
+      165 -          type: 'string',
+      166 -          enum: ['quick', 'standard', 'deep'],
+      167 -          description: 'Analysis depth level',
+      168 -        },
+      169 -      },
+      170 -      required: ['ticker'],
+      171 -    },
+      172 -  },
+      173 -  {
+      174 -    name: 'create_alert',
+      175 -    description: 'Create a trading alert that will be shown on the dashboard.',
+      176 -    input_schema: {
+      177 -      type: 'object' as const,
+      178 -      properties: {
+      179 -        severity: { type: 'string', enum: ['info', 'warning', 'critical'] },
+      180 -        title: { type: 'string' },
+      181 -        message: { type: 'string' },
+      182 -        ticker: { type: 'string', description: 'Related ticker (optional)' },
+      183 -      },
+      184 -      required: ['severity', 'title', 'message'],
+      185 -    },
+      186 -  },
+      187 -];
+       58 +    get_strategy_info: tool({
+       59 +      description: 'Get details about available trading strategies including parameters and families.',
+       60 +      inputSchema: z.object({
+       61 +        family: z.string().optional().describe('Filter by strategy family'),
+       62 +      }),
+       63 +      execute: async (input) => executor.getStrategyInfo(input),
+       64 +    }),
+       65
+      189 -// Map agent roles to their available tools
+       66 +    assess_portfolio_risk: tool({
+       67 +      description:
+       68 +        'Run comprehensive risk assessment on current portfolio. Returns drawdown, concentration, and limi
+          +t status.',
+       69 +      inputSchema: z.object({}),
+       70 +      execute: async () => executor.assessPortfolioRisk(),
+       71 +    }),
+       72 +
+       73 +    calculate_position_size: tool({
+       74 +      description: 'Calculate optimal position size for a proposed trade using risk-adjusted sizing.',
+       75 +      inputSchema: z.object({
+       76 +        ticker: z.string().describe('Ticker symbol'),
+       77 +        price: z.number().describe('Current price'),
+       78 +        method: z
+       79 +          .enum(['fixed_fraction', 'volatility_target', 'kelly_criterion'])
+       80 +          .optional()
+       81 +          .describe('Sizing method'),
+       82 +      }),
+       83 +      execute: async (input) => executor.calculatePositionSize(input),
+       84 +    }),
+       85 +
+       86 +    check_risk_limits: tool({
+       87 +      description: 'Check if a proposed trade passes all risk limits (position, sector, drawdown).',
+       88 +      inputSchema: z.object({
+       89 +        ticker: z.string(),
+       90 +        shares: z.number(),
+       91 +        price: z.number(),
+       92 +        side: z.enum(['buy', 'sell']),
+       93 +      }),
+       94 +      execute: async (input) => executor.checkRiskLimits(input),
+       95 +    }),
+       96 +
+       97 +    submit_order: tool({
+       98 +      description: 'Submit a trade order (paper or live based on broker mode).',
+       99 +      inputSchema: z.object({
+      100 +        ticker: z.string(),
+      101 +        side: z.enum(['buy', 'sell']),
+      102 +        quantity: z.number(),
+      103 +        order_type: z.enum(['market', 'limit']),
+      104 +        limit_price: z.number().optional().describe('Required for limit orders'),
+      105 +        strategy_name: z.string().optional(),
+      106 +      }),
+      107 +      execute: async (input) => executor.submitOrder(input),
+      108 +    }),
+      109 +
+      110 +    get_open_orders: tool({
+      111 +      description: 'Get all currently open/pending orders.',
+      112 +      inputSchema: z.object({}),
+      113 +      execute: async () => executor.getOpenOrders(),
+      114 +    }),
+      115 +
+      116 +    analyze_ticker: tool({
+      117 +      description:
+      118 +        'Perform deep analysis on a specific ticker: technical setup, trend, support/resistance, volume pr
+          +ofile.',
+      119 +      inputSchema: z.object({
+      120 +        ticker: z.string().describe('Ticker symbol to analyze'),
+      121 +        depth: z.enum(['quick', 'standard', 'deep']).optional().describe('Analysis depth level'),
+      122 +      }),
+      123 +      execute: async (input) => executor.analyzeTicker(input),
+      124 +    }),
+      125 +
+      126 +    create_alert: tool({
+      127 +      description: 'Create a trading alert that will be shown on the dashboard.',
+      128 +      inputSchema: z.object({
+      129 +        severity: z.enum(['info', 'warning', 'critical']),
+      130 +        title: z.string(),
+      131 +        message: z.string(),
+      132 +        ticker: z.string().optional().describe('Related ticker (optional)'),
+      133 +      }),
+      134 +      execute: async (input) => executor.createAlert(input),
+      135 +    }),
+      136 +  };
+      137 +}
+      138 +
+      139 +// ── Agent → tool mapping ────────────────────────────────────────
+      140 +
+      141  export const AGENT_TOOLS: Record<string, string[]> = {
+      142    market_sentinel: ['get_market_data', 'get_market_sentiment', 'create_alert'],
+      143    strategy_analyst: [
+     ...
+      163    ],
+      164  };
+      165
+      215 -export function getToolsForAgent(role: string): Anthropic.Tool[] {
+      216 -  const allowed = AGENT_TOOLS[role] ?? [];
+      217 -  return TOOL_DEFINITIONS.filter((t) => allowed.includes(t.name));
+      166 +/**
+      167 + * Create the tool subset for a specific agent role, bound to the given executor.
+      168 + */
+      169 +export function getToolsForAgent(
+      170 +  role: AgentRole,
+      171 +  executor: ToolExecutor,
+      172 +): Record<string, CoreTool> {
+      173 +  const allowed = new Set(AGENT_TOOLS[role] ?? []);
+      174 +  const allTools = createAllTools(executor);
+      175 +  const filtered: Record<string, CoreTool> = {};
+      176 +  for (const [name, t] of Object.entries(allTools)) {
+      177 +    if (allowed.has(name)) filtered[name] = t;
+      178 +  }
+      179 +  return filtered;
+      180  }
+  ⎿  3 PostToolUse hooks ran
+
+                                                                                            05:02 PM claude-opus-4-6
+● Those skills are for Vercel-hosted chat UIs — not applicable here (agents run on Railway as a backend service). Continuing
+   with the executor refactor.
+
+  Now I need to update ToolExecutor to expose typed public methods that the tools call:
+
+● Write(C:\Users\steve\Projects\personal\Stock Trading App\apps\agents\src\tool-executor.ts)
+  ⎿  Added 42 lines, removed 84 lines
+      1  /**
+      2   * Tool execution layer — all tools wired to live engine API and Supabase.
+      3 + *
+      4 + * Public methods are called directly by AI SDK tool `execute` functions.
+      5 + * Each method returns a plain object (AI SDK serializes it automatically).
+      6   */
+      7
+      8  import { EngineClient } from './engine-client.js';
+     ...
+      21      this.engine = engine ?? new EngineClient();
+      22    }
+      23
+      21 -  async execute(toolName: string, input: Record<string, unknown>): Promise<string> {
+      22 -    try {
+      23 -      const result = await this.dispatch(toolName, input);
+      24 -      return JSON.stringify(result, null, 2);
+      25 -    } catch (err) {
+      26 -      const message = err instanceof Error ? err.message : String(err);
+      27 -      return JSON.stringify({ error: message });
+      28 -    }
+      29 -  }
+      30 -
+      31 -  private async dispatch(toolName: string, input: Record<string, unknown>): Promise<unknown> {
+      32 -    switch (toolName) {
+      33 -      case 'get_market_data':
+      34 -        return this.getMarketData(input);
+      35 -      case 'get_market_sentiment':
+      36 -        return this.getMarketSentiment();
+      37 -      case 'run_strategy_scan':
+      38 -        return this.runStrategyScan(input);
+      39 -      case 'get_strategy_info':
+      40 -        return this.getStrategyInfo(input);
+      41 -      case 'assess_portfolio_risk':
+      42 -        return this.assessPortfolioRisk();
+      43 -      case 'calculate_position_size':
+      44 -        return this.calculatePositionSize(input);
+      45 -      case 'check_risk_limits':
+      46 -        return this.checkRiskLimits(input);
+      47 -      case 'submit_order':
+      48 -        return this.submitOrder(input);
+      49 -      case 'get_open_orders':
+      50 -        return this.getOpenOrders();
+      51 -      case 'analyze_ticker':
+      52 -        return this.analyzeTicker(input);
+      53 -      case 'create_alert':
+      54 -        return this.createAlert(input);
+      55 -      default:
+      56 -        throw new Error(`Unknown tool: ${toolName}`);
+      57 -    }
+      58 -  }
+      59 -
+      24    // ── Market Data ────────────────────────────────────────────────
+      25
+      62 -  private async getMarketData(input: Record<string, unknown>) {
+      63 -    const tickers = (input.tickers as string[]) ?? [];
+      64 -    const timeframe = (input.timeframe as string) ?? '1d';
+      26 +  async getMarketData(input: { tickers: string[]; timeframe?: string }) {
+      27 +    const { tickers, timeframe = '1d' } = input;
+      28
+      29      // Ingest is best-effort — don't fail if Supabase isn't available
+      30      try {
+     ...
+      46      };
+      47    }
+      48
+      86 -  private async getMarketSentiment(): Promise<MarketSentiment> {
+      49 +  async getMarketSentiment(): Promise<MarketSentiment> {
+      50      const quotes = await this.engine.getQuotes(['SPY', 'QQQ', 'IWM']);
+      51      const spy = quotes.find((q) => q.ticker === 'SPY');
+      52      const spyChange = spy?.change_pct ?? 0;
+     ...
+       77
+       78    // ── Strategy ───────────────────────────────────────────────────
+       79
+      117 -  private async runStrategyScan(input: Record<string, unknown>) {
+      118 -    const tickers = (input.tickers as string[] | undefined) ?? [];
+      119 -    const strategies = (input.strategies as string[] | undefined) ?? [];
+       80 +  async runStrategyScan(input: { strategies?: string[]; tickers?: string[] }) {
+       81 +    const tickers = input.tickers?.length ? input.tickers : [...WATCHLIST_TICKERS];
+       82 +    const strategies = input.strategies ?? [];
+       83
+      121 -    const scanTickers = tickers.length > 0 ? tickers : [...WATCHLIST_TICKERS];
+      122 -
+       84      const result = await this.engine.scanStrategies({
+      124 -      tickers: scanTickers,
+       85 +      tickers,
+       86        days: 90,
+       87        min_strength: 0.3,
+       88      });
+     ...
+      101      };
+      102    }
+      103
+      143 -  private async getStrategyInfo(input: Record<string, unknown>) {
+      104 +  async getStrategyInfo(input: { family?: string }) {
+      105      const strategies = await this.engine.getStrategies();
+      145 -    const family = input.family as string | undefined;
+      146 -    if (family) {
+      147 -      return { family, strategies: strategies.strategies.filter((s) => s.family === family) };
+      106 +    if (input.family) {
+      107 +      return { family: input.family, strategies: strategies.strategies.filter((s) => s.family === input.fa
+          +mily) };
+      108      }
+      109      return strategies;
+      110    }
+      111
+      112    // ── Risk ───────────────────────────────────────────────────────
+      113
+      154 -  private async assessPortfolioRisk(): Promise<RiskAssessment> {
+      114 +  async assessPortfolioRisk(): Promise<RiskAssessment> {
+      115      const [acct, positions] = await Promise.all([
+      116        this.engine.getAccount(),
+      117        this.engine.getPositions(),
+     ...
+      146      };
+      147    }
+      148
+      189 -  private async calculatePositionSize(input: Record<string, unknown>) {
+      149 +  async calculatePositionSize(input: { ticker: string; price: number; method?: string }) {
+      150      const acct = await this.engine.getAccount();
+      151      return this.engine.calculatePositionSize({
+      192 -      ticker: input.ticker as string,
+      193 -      price: input.price as number,
+      152 +      ticker: input.ticker,
+      153 +      price: input.price,
+      154        equity: acct.equity,
+      195 -      method: (input.method as string) ?? 'fixed_fraction',
+      155 +      method: input.method ?? 'fixed_fraction',
+      156      });
+      157    }
+      158
+      199 -  private async checkRiskLimits(input: Record<string, unknown>) {
+      159 +  async checkRiskLimits(input: { ticker: string; shares: number; price: number; side: 'buy' | 'sell' }) {
+      160      const [acct, positions] = await Promise.all([
+      161        this.engine.getAccount(),
+      162        this.engine.getPositions(),
+     ...
+      168      }
+      169
+      170      const result = await this.engine.preTradeCheck({
+      211 -      ticker: input.ticker as string,
+      212 -      shares: input.shares as number,
+      213 -      price: input.price as number,
+      214 -      side: input.side as 'buy' | 'sell',
+      171 +      ticker: input.ticker,
+      172 +      shares: input.shares,
+      173 +      price: input.price,
+      174 +      side: input.side,
+      175        equity: acct.equity,
+      176        cash: acct.cash,
+      177        peak_equity: acct.initial_capital ?? acct.equity,
+     ...
+      193
+      194    // ── Execution ──────────────────────────────────────────────────
+      195
+      236 -  private async submitOrder(input: Record<string, unknown>) {
+      196 +  async submitOrder(input: {
+      197 +    ticker: string;
+      198 +    side: 'buy' | 'sell';
+      199 +    quantity: number;
+      200 +    order_type: 'market' | 'limit';
+      201 +    limit_price?: number;
+      202 +    strategy_name?: string;
+      203 +  }) {
+      204      const rec: RecommendationCreate = {
+      205        agent_role: 'execution_monitor',
+      239 -      ticker: (input.ticker as string).toUpperCase(),
+      240 -      side: input.side as 'buy' | 'sell',
+      241 -      quantity: input.quantity as number,
+      242 -      order_type: (input.order_type as 'market' | 'limit') ?? 'market',
+      206 +      ticker: input.ticker.toUpperCase(),
+      207 +      side: input.side,
+      208 +      quantity: input.quantity,
+      209 +      order_type: input.order_type,
+      210        reason: 'Agent-generated trade recommendation',
+      211      };
+      245 -    const limitPrice = input.limit_price as number | undefined;
+      246 -    if (limitPrice !== undefined) rec.limit_price = limitPrice;
+      247 -    const strategyName = input.strategy_name as string | undefined;
+      248 -    if (strategyName !== undefined) rec.strategy_name = strategyName;
+      212 +    if (input.limit_price !== undefined) rec.limit_price = input.limit_price;
+      213 +    if (input.strategy_name !== undefined) rec.strategy_name = input.strategy_name;
+      214
+      215      const recommendation = await createRecommendation(rec);
+      216
+     ...
+      221      };
+      222    }
+      223
+      259 -  private async getOpenOrders() {
+      224 +  async getOpenOrders() {
+      225      const orders = await this.engine.getOpenOrders();
+      226      return { orders, count: (orders as unknown[]).length };
+      227    }
+      228
+      229    // ── Research ───────────────────────────────────────────────────
+      230
+      266 -  private async analyzeTicker(input: Record<string, unknown>) {
+      267 -    const ticker = (input.ticker as string).toUpperCase();
+      231 +  async analyzeTicker(input: { ticker: string; depth?: string }) {
+      232 +    const ticker = input.ticker.toUpperCase();
+      233
+      234      const result = await this.engine.scanStrategies({
+      235        tickers: [ticker],
+     ...
+      268
+      269    // ── Alerts ─────────────────────────────────────────────────────
+      270
+      306 -  private async createAlert(input: Record<string, unknown>) {
+      307 -    const alertData: import('./recommendations-store.js').AlertCreate = {
+      308 -      severity: input.severity as 'info' | 'warning' | 'critical',
+      309 -      title: input.title as string,
+      310 -      message: input.message as string,
+      311 -    };
+      312 -    const ticker = input.ticker as string | undefined;
+      313 -    if (ticker !== undefined) alertData.ticker = ticker;
+      314 -    return dbCreateAlert(alertData);
+      271 +  async createAlert(input: { severity: 'info' | 'warning' | 'critical'; title: string; message: string; ti
+          +cker?: string }) {
+      272 +    return dbCreateAlert(input);
+      273    }
+      274  }
+  ⎿  3 PostToolUse hooks ran
+
+                                                                                            05:03 PM claude-opus-4-6
+● Now rewrite agent.ts to use AI SDK generateText:
+
+● Write(C:\Users\steve\Projects\personal\Stock Trading App\apps\agents\src\agent.ts)
+  ⎿  Added 36 lines, removed 81 lines
+       1  /**
+       2 - * Base Agent class — wraps the Claude API with tool calling.
+       2 + * Base Agent class — wraps AI SDK v6 generateText with tool calling.
+       3   *
+       4   * Each agent is initialized with a system prompt defining its role,
+       5 - * a set of allowed tools, and an agentic loop that handles
+       6 - * multi-turn tool-use conversations.
+       5 + * a set of allowed tools, and uses AI SDK's built-in multi-step
+       6 + * tool-calling loop (stopWhen: stepCountIs).
+       7   */
+       8
+       9 -import Anthropic from '@anthropic-ai/sdk';
+       9 +import { generateText, stepCountIs } from 'ai';
+      10 +import { createAnthropic } from '@ai-sdk/anthropic';
+      11  import type { AgentConfig, AgentResult, AgentRole } from './types.js';
+      12  import { getToolsForAgent } from './tools.js';
+      13  import { ToolExecutor } from './tool-executor.js';
+     ...
+      83  };
+      84
+      85  export class Agent {
+      85 -  private client: Anthropic;
+      86 +  private anthropic: ReturnType<typeof createAnthropic>;
+      87    private executor: ToolExecutor;
+      88    readonly config: AgentConfig;
+      89
+     ...
+       95      },
+       96    ) {
+       97      this.config = config;
+       97 -    this.client = new Anthropic({
+       98 +    this.anthropic = createAnthropic({
+       99        apiKey: options?.apiKey ?? process.env.ANTHROPIC_API_KEY,
+      100      });
+      101      this.executor = options?.executor ?? new ToolExecutor();
+     ...
+      103
+      104    /**
+      105     * Run the agent with a user prompt.
+      105 -   * Implements an agentic loop: Claude responds → tool calls → execute → loop.
+      106 +   * AI SDK handles the multi-turn tool-calling loop via stopWhen.
+      107     */
+      107 -  async run(userPrompt: string, maxTurns = 10): Promise<AgentResult> {
+      108 +  async run(userPrompt: string, maxSteps = 10): Promise<AgentResult> {
+      109      const startTime = Date.now();
+      109 -    const tools = getToolsForAgent(this.config.role);
+      110      const workflow = loadWorkflow(this.config.role);
+      111      const systemPrompt = workflow?.systemPrompt ?? SYSTEM_PROMPTS[this.config.role];
+      112 +    const tools = getToolsForAgent(this.config.role, this.executor);
+      113
+      113 -    const messages: Anthropic.MessageParam[] = [{ role: 'user', content: userPrompt }];
+      114 +    try {
+      115 +      const result = await generateText({
+      116 +        model: this.anthropic('claude-sonnet-4-20250514'),
+      117 +        system: systemPrompt,
+      118 +        prompt: userPrompt,
+      119 +        tools,
+      120 +        maxOutputTokens: 4096,
+      121 +        stopWhen: stepCountIs(maxSteps),
+      122 +      });
+      123
+      115 -    let lastTextResponse = '';
+      116 -
+      117 -    for (let turn = 0; turn < maxTurns; turn++) {
+      118 -      let response: Anthropic.Message;
+      119 -      try {
+      120 -        response = await this.client.messages.create({
+      121 -          model: 'claude-sonnet-4-20250514',
+      122 -          max_tokens: 4096,
+      123 -          system: systemPrompt,
+      124 -          tools,
+      125 -          messages,
+      126 -        });
+      127 -      } catch (err) {
+      128 -        const message = err instanceof Error ? err.message : String(err);
+      129 -        return {
+      130 -          role: this.config.role,
+      131 -          success: false,
+      132 -          timestamp: new Date().toISOString(),
+      133 -          durationMs: Date.now() - startTime,
+      134 -          data: null,
+      135 -          error: `API error: ${message}`,
+      136 -        };
+      137 -      }
+      138 -
+      139 -      // Collect text blocks
+      140 -      for (const block of response.content) {
+      141 -        if (block.type === 'text') {
+      142 -          lastTextResponse = block.text;
+      143 -        }
+      144 -      }
+      145 -
+      146 -      // If no tool use, we're done
+      147 -      if (response.stop_reason === 'end_turn') {
+      148 -        break;
+      149 -      }
+      150 -
+      151 -      // Process tool calls
+      152 -      const toolUseBlocks = response.content.filter(
+      153 -        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+      154 -      );
+      155 -
+      156 -      if (toolUseBlocks.length === 0) {
+      157 -        break;
+      158 -      }
+      159 -
+      160 -      // Add assistant message with tool calls
+      161 -      messages.push({ role: 'assistant', content: response.content });
+      162 -
+      163 -      // Execute tools and add results
+      164 -      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      165 -      for (const toolBlock of toolUseBlocks) {
+      166 -        const result = await this.executor.execute(
+      167 -          toolBlock.name,
+      168 -          toolBlock.input as Record<string, unknown>,
+      169 -        );
+      170 -        toolResults.push({
+      171 -          type: 'tool_result',
+      172 -          tool_use_id: toolBlock.id,
+      173 -          content: result,
+      174 -        });
+      175 -      }
+      176 -
+      177 -      messages.push({ role: 'user', content: toolResults });
+      124 +      return {
+      125 +        role: this.config.role,
+      126 +        success: true,
+      127 +        timestamp: new Date().toISOString(),
+      128 +        durationMs: Date.now() - startTime,
+      129 +        data: result.text,
+      130 +      };
+      131 +    } catch (err) {
+      132 +      const message = err instanceof Error ? err.message : String(err);
+      133 +      return {
+      134 +        role: this.config.role,
+      135 +        success: false,
+      136 +        timestamp: new Date().toISOString(),
+      137 +        durationMs: Date.now() - startTime,
+      138 +        data: null,
+      139 +        error: `API error: ${message}`,
+      140 +      };
+      141      }
+      179 -
+      180 -    return {
+      181 -      role: this.config.role,
+      182 -      success: true,
+      183 -      timestamp: new Date().toISOString(),
+      184 -      durationMs: Date.now() - startTime,
+      185 -      data: lastTextResponse,
+      186 -    };
+      142    }
+      143  }
+  ⎿  3 PostToolUse hooks ran
+
+                                                                                            05:04 PM claude-opus-4-6
+● These errors don't apply — the agents service runs on Railway, not Vercel. The plan explicitly states: "since agents run
+  on Railway (not Vercel), use @ai-sdk/anthropic directly with ANTHROPIC_API_KEY". OIDC/AI Gateway are Vercel-only features.
+   The model ID claude-sonnet-4-20250514 is the correct Anthropic API model identifier (not a gateway slug).
+
+  Now let me update package.json to remove the old @anthropic-ai/sdk dependency since AI SDK replaces it:
+
+● Read(apps\agents\package.json)
+  ⎿  Read 39 lines
+
+● Update(C:\Users\steve\Projects\personal\Stock Trading App\apps\agents\package.json)
+  ⎿  Removed 1 line
+      12    },
+      13    "dependencies": {
+      14      "@ai-sdk/anthropic": "^3.0.63",
+      15 -    "@anthropic-ai/sdk": "^0.80.0",
+      15      "@sentinel/shared": "workspace:*",
+      16      "@supabase/supabase-js": "^2",
+      17      "ai": "^6.0.134",
+  ⎿  3 PostToolUse hooks ran
+
+                                                                                            05:04 PM claude-opus-4-6
+● Now check if anything else imports @anthropic-ai/sdk:
+
+● Search(pattern: "@anthropic-ai/sdk", path: "apps\agents\src")
+  ⎿  Found 1 file (ctrl+o to expand)
+
+● Read(apps\agents\src\wat\tool-registry.ts)
+  ⎿  Read 50 lines
+
+                                                                                            05:04 PM claude-opus-4-6
+● This ToolRegistry is a WAT (workflow) extension that merges Python tools with TS tools. It still references the old
+  Anthropic SDK types. I'll update it to use generic types since the AI SDK tools are now the primary interface:
+
+● Write(C:\Users\steve\Projects\personal\Stock Trading App\apps\agents\src\wat\tool-registry.ts)
+  ⎿  Added 29 lines, removed 23 lines
+       1  // apps/agents/src/wat/tool-registry.ts
+       2 -import type Anthropic from '@anthropic-ai/sdk';
+       3 -import { TOOL_DEFINITIONS } from '../tools.js';
+       2 +import type { CoreTool } from 'ai';
+       3 +import { createAllTools } from '../tools.js';
+       4  import { ToolExecutor } from '../tool-executor.js';
+       5 +import { tool } from 'ai';
+       6 +import { z } from 'zod';
+       7  import { runPythonTool } from './python-runner.js';
+       8  import type { PythonToolSchema } from './types.js';
+       9
+      10  export class ToolRegistry {
+      11    private tsExecutor: ToolExecutor;
+      12    private pythonTools: Map<string, PythonToolSchema>;
+      11 -  private allDefinitions: Anthropic.Tool[];
+      13
+      13 -  constructor(tsExecutor: ToolExecutor, toolsDir?: string, pythonSchemas?: PythonToolSchema[]) {
+      14 +  constructor(tsExecutor: ToolExecutor, _toolsDir?: string, pythonSchemas?: PythonToolSchema[]) {
+      15      this.tsExecutor = tsExecutor;
+      16      this.pythonTools = new Map();
+      17
+     ...
+      20          this.pythonTools.set(schema.name, schema);
+      21        }
+      22      }
+      22 -
+      23 -    const pyDefs: Anthropic.Tool[] = Array.from(this.pythonTools.values()).map((s) => ({
+      24 -      name: s.name,
+      25 -      description: s.description,
+      26 -      input_schema: s.input_schema as Anthropic.Tool.InputSchema,
+      27 -    }));
+      28 -
+      29 -    this.allDefinitions = [...TOOL_DEFINITIONS, ...pyDefs];
+      23    }
+      24
+      32 -  async execute(toolName: string, input: Record<string, unknown>): Promise<string> {
+      33 -    const pyTool = this.pythonTools.get(toolName);
+      34 -    if (pyTool) {
+      35 -      return runPythonTool(pyTool.scriptPath.replace(/\.py$/, ''), input);
+      36 -    }
+      25 +  /**
+      26 +   * Build the full tool map: AI SDK tools + Python tools (wrapped as AI SDK tools).
+      27 +   */
+      28 +  getAllTools(): Record<string, CoreTool> {
+      29 +    const tsTools = createAllTools(this.tsExecutor);
+      30
+      38 -    const tsDef = TOOL_DEFINITIONS.find((t) => t.name === toolName);
+      39 -    if (tsDef) {
+      40 -      return this.tsExecutor.execute(toolName, input);
+      31 +    // Wrap Python tools as AI SDK tools with passthrough JSON schema
+      32 +    const pyTools: Record<string, CoreTool> = {};
+      33 +    for (const [name, schema] of this.pythonTools) {
+      34 +      pyTools[name] = tool({
+      35 +        description: schema.description,
+      36 +        inputSchema: z.record(z.unknown()),
+      37 +        execute: async (input) => {
+      38 +          const result = await runPythonTool(schema.scriptPath.replace(/\.py$/, ''), input);
+      39 +          return JSON.parse(result);
+      40 +        },
+      41 +      });
+      42      }
+      43
+      43 -    return JSON.stringify({ error: `Unknown tool: ${toolName}` });
+      44 +    return { ...tsTools, ...pyTools };
+      45    }
+      46
+      46 -  getToolsForAgent(allowedTools: string[]): Anthropic.Tool[] {
+      47 -    return this.allDefinitions.filter((t) => allowedTools.includes(t.name));
+      47 +  getToolsForAgent(allowedTools: string[]): Record<string, CoreTool> {
+      48 +    const all = this.getAllTools();
+      49 +    const filtered: Record<string, CoreTool> = {};
+      50 +    for (const name of allowedTools) {
+      51 +      if (all[name]) filtered[name] = all[name];
+      52 +    }
+      53 +    return filtered;
+      54    }
+      55  }
+  ⎿  3 PostToolUse hooks ran
+
+                                                                                            05:04 PM claude-opus-4-6
+● Now let me check if there are any remaining references to the old Anthropic SDK:
+
+● Search(pattern: "@anthropic-ai/sdk|from '@anthropic-ai|import Anthropic", path: "apps\agents\src")
+  ⎿  Found 0 files
+
+                                                                                            05:04 PM claude-opus-4-6
+● Clean. Let me run the type checker:
+
+● Bash(cd "C:/Users/steve/Projects/personal/Stock Trading App" && pnpm install 2>&1 | tail -3)
+  ⎿  . prepare: Done
+
+     Done in 31s using pnpm v10.32.1
+  ⎿  (timeout 1m)
+  ⎿  4 PostToolUse hooks ran
+
+                                                                                                05:05 PM <synthetic>
+  ⎿  You're out of extra usage · resets Mar 25, 1pm (America/Chicago)
+
+
+✻ Sautéed for 11m 52s
+
+✻ Conversation compacted (ctrl+o for history)
+
+
+● Compact summary
+  ⎿  This session is being continued from a previous conversation that ran out of context. The summary below covers the
+     earlier portion of the conversation.
+
+     You're out of extra usage · resets Mar 25, 1pm (America/Chicago)
+
+     If you need specific details from before compaction (like exact code snippets, error messages, or content you
+     generated), read the full transcript at:
+     C:\Users\steve\.claude\projects\C--Users-steve\d06b4417-a54c-4d22-9f57-db868710431c.jsonl
+
+❯ /compact
+  ⎿  Compacted (ctrl+o to see full summary)
+     Tip: You have access to Opus 1M with 5x more context
+  ⎿  Read apps\agents\src\wat\tool-registry.ts (56 lines)
+  ⎿  Read apps\agents\package.json (38 lines)
+  ⎿  Read apps\agents\src\agent.ts (144 lines)
+  ⎿  Read apps\agents\src\tool-executor.ts (275 lines)
+  ⎿  Read apps\agents\src\tools.ts (181 lines)
+  ⎿  Plan file referenced (~\.claude\plans\partitioned-dancing-marshmallow.md)

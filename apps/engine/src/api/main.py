@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -14,7 +15,11 @@ from src.api.routes.portfolio import router as portfolio_router
 from src.api.routes.risk import router as risk_router
 from src.api.routes.strategies import router as strategies_router
 from src.config import Settings
+from src.data.alpaca_ws import AlpacaWebSocket
+from src.data.price_cache import PriceCache
 from src.middleware.tracing import RequestTracingMiddleware
+
+_logger = logging.getLogger(__name__)
 
 # Paths that don't require an API key (health checks, OpenAPI docs)
 _PUBLIC_PATHS = frozenset({"/health", "/docs", "/openapi.json", "/redoc"})
@@ -53,8 +58,29 @@ class ApiKeyMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     _settings.validate()
+
+    # ── Real-time price feed ─────────────────────────────────
+    price_cache = PriceCache()
+    app.state.price_cache = price_cache
+
+    alpaca_ws: AlpacaWebSocket | None = None
+    if _settings.alpaca_api_key and _settings.alpaca_secret_key:
+        alpaca_ws = AlpacaWebSocket(
+            api_key=_settings.alpaca_api_key,
+            secret_key=_settings.alpaca_secret_key,
+        )
+        alpaca_ws.start(price_cache)
+    else:
+        _logger.warning(
+            "Alpaca credentials not configured — real-time WebSocket feed disabled"
+        )
+    app.state.alpaca_ws = alpaca_ws
+
     yield
-    # Shutdown
+
+    # ── Shutdown ─────────────────────────────────────────────
+    if alpaca_ws is not None:
+        await alpaca_ws.stop()
 
 
 app = FastAPI(
