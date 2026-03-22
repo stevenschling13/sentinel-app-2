@@ -11,7 +11,7 @@ export async function proxyRequest(
 ): Promise<NextResponse> {
   const upstreamPath = pathSegments.join('/');
   const url = new URL(request.url);
-  const upstream = `${upstreamBase}/api/v1/${upstreamPath}${url.search}`;
+  const upstream = `${upstreamBase}/${upstreamPath}${url.search}`;
 
   const headers = new Headers();
   headers.set('Authorization', `Bearer ${apiKey}`);
