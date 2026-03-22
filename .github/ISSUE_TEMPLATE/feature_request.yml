@@ -1,8 +1,12 @@
 name: Feature Request
 description: Suggest a new feature or improvement
 title: "[Feature] "
-labels: ["enhancement"]
+labels: ["feature"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe what you'd like.
   - type: textarea
     id: description
     attributes:
@@ -21,13 +25,6 @@ body:
     id: solution
     attributes:
       label: Proposed Solution
-      description: How would you implement this?
-    validations:
-      required: false
-  - type: textarea
-    id: alternatives
-    attributes:
-      label: Alternatives Considered
-      description: Any alternative approaches you've considered.
+      description: If you have ideas on implementation, describe them here.
     validations:
       required: false
