@@ -3,6 +3,38 @@
  * Used by agents to interact with the quant engine.
  */
 
+import { logger } from './logger.js';
+
+/** Request timeout in milliseconds. */
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+/** Maximum number of retry attempts before giving up. */
+const MAX_RETRIES = 3;
+
+/** Base delay in milliseconds for exponential backoff. */
+const BASE_DELAY_MS = 200;
+
+/**
+ * Returns true if the HTTP status code indicates a transient failure
+ * that is safe to retry (timeout, rate-limited, or server error).
+ */
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+/**
+ * Computes exponential backoff delay with ±20 % jitter.
+ * @param attempt - Zero-based retry attempt number.
+ */
+function getBackoffDelay(attempt: number): number {
+  const jitter = 0.8 + Math.random() * 0.4;
+  return BASE_DELAY_MS * Math.pow(2, attempt) * jitter;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export interface EngineHealth {
   status: string;
   engine: string;
@@ -57,21 +89,64 @@ export class EngineClient {
 
   private async request<T>(path: string, options?: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-        ...options?.headers,
-      },
-    });
+    let lastError: unknown;
 
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Error(`Engine API error ${res.status}: ${body}`);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const res = await fetch(url, {
+          ...options,
+          signal: options?.signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+            ...options?.headers,
+          },
+        });
+
+        if (!res.ok) {
+          if (attempt < MAX_RETRIES && isRetryableStatus(res.status)) {
+            const delay = getBackoffDelay(attempt);
+            logger.warn('engine_request_retry', {
+              url,
+              status: res.status,
+              attempt: attempt + 1,
+              maxRetries: MAX_RETRIES,
+              delayMs: Math.round(delay),
+            });
+            await sleep(delay);
+            continue;
+          }
+          const body = await res.text().catch(() => '');
+          throw new Error(`Engine API error ${res.status}: ${body}`);
+        }
+
+        return res.json() as Promise<T>;
+      } catch (err) {
+        lastError = err;
+
+        if (attempt < MAX_RETRIES) {
+          const isTimeout = err instanceof DOMException && err.name === 'TimeoutError';
+          const isNetwork = err instanceof TypeError || isTimeout;
+
+          if (isNetwork) {
+            const delay = getBackoffDelay(attempt);
+            logger.warn('engine_request_retry', {
+              url,
+              error: err instanceof Error ? err.message : String(err),
+              attempt: attempt + 1,
+              maxRetries: MAX_RETRIES,
+              delayMs: Math.round(delay),
+            });
+            await sleep(delay);
+            continue;
+          }
+        }
+
+        throw err;
+      }
     }
 
-    return res.json() as Promise<T>;
+    throw lastError;
   }
 
   async getHealth(): Promise<EngineHealth> {
