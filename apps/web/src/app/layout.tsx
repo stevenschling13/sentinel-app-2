@@ -17,8 +17,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Sentinel Trading Platform',
+  title: {
+    default: 'Sentinel Trading Platform',
+    template: '%s | Sentinel',
+  },
   description: 'Autonomous stock trading command center',
+  openGraph: {
+    title: 'Sentinel Trading Platform',
+    description: 'Autonomous stock trading command center',
+    type: 'website',
+  },
+  icons: { icon: '/favicon.ico' },
 };
 
 export default function RootLayout({

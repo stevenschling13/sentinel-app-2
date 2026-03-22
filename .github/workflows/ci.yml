@@ -24,7 +24,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo build --filter=@sentinel/web
+      - name: Lint & Type Check
+        run: pnpm turbo lint --filter=@sentinel/web
+      - name: Test
+        run: pnpm --filter @sentinel/web test
+      - name: Build
+        run: pnpm turbo build --filter=@sentinel/web
 
   engine:
     name: Engine (Python)
@@ -37,10 +42,12 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: '3.13'
       - run: uv sync --extra dev
-      - run: uv run ruff check src/
-      - run: uv run python -m pytest tests/ -v
+      - name: Lint
+        run: uv run ruff check src/
+      - name: Test
+        run: uv run python -m pytest tests/ -v --tb=short
 
   agents:
     name: Agents (TypeScript)
@@ -55,4 +62,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo build --filter=@sentinel/agents
+      - name: Lint & Type Check
+        run: pnpm turbo lint --filter=@sentinel/agents
+      - name: Test
+        run: pnpm --filter @sentinel/agents test
+      - name: Build
+        run: pnpm turbo build --filter=@sentinel/agents

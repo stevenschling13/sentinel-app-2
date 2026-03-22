@@ -66,8 +66,8 @@ export default function DashboardPage() {
         }).filter((t) => t.price > 0),
       );
       setIsLive(true);
-    } catch {
-      // Keep fallback data
+    } catch (err) {
+      console.error('[Dashboard] [prices] fetch failed:', err instanceof Error ? err.message : err);
     }
   }, []);
 
@@ -79,8 +79,11 @@ export default function DashboardPage() {
       });
       if (!res.ok) throw new Error(`${res.status}`);
       setAccount(await res.json());
-    } catch {
-      // Keep defaults
+    } catch (err) {
+      console.error(
+        '[Dashboard] [account] fetch failed:',
+        err instanceof Error ? err.message : err,
+      );
     }
   }, []);
 
@@ -136,8 +139,8 @@ export default function DashboardPage() {
           })),
         );
       }
-    } catch {
-      // Agents offline
+    } catch (err) {
+      console.error('[Dashboard] [alerts] fetch failed:', err instanceof Error ? err.message : err);
     }
   }, []);
 
@@ -235,9 +238,9 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-2">
-                {recentSignals.map((s, i) => (
+                {recentSignals.map((s) => (
                   <div
-                    key={i}
+                    key={`${s.ticker}-${s.ts}`}
                     className="flex items-center justify-between border-b border-border/50 py-1.5 last:border-0"
                   >
                     <div className="flex items-center gap-2">

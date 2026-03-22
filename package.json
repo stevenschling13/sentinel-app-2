@@ -7,11 +7,27 @@
     "build": "turbo build",
     "test": "turbo test",
     "lint": "turbo lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test:engine": "cd apps/engine && uv run python -m pytest tests/ -v",
     "lint:engine": "cd apps/engine && uv run python -m ruff check src tests",
-    "clean": "turbo clean"
+    "clean": "turbo clean",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,yaml,yml,css}": [
+      "prettier --write"
+    ],
+    "apps/engine/**/*.py": [
+      "ruff check --fix"
+    ]
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.1",
     "turbo": "^2"
   }
 }
