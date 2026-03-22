@@ -23,7 +23,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         # Skip rate limit for internal endpoints
-        if request.url.path in ["/health", "/docs", "/openapi.json", "/redoc"]:
+        if request.url.path == "/health":
             return await call_next(request)
 
         # Extract client IP

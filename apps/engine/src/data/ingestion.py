@@ -1,10 +1,16 @@
 """Data ingestion orchestrator: fetches from Polygon and upserts to Supabase."""
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass, field
 from datetime import date
+from typing import TYPE_CHECKING
 
 from src.data.polygon_client import PolygonBar, PolygonClient
+
+if TYPE_CHECKING:
+    from src.db import SupabaseDB
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +26,7 @@ class IngestionResult:
 class DataIngestionService:
     """Orchestrates fetching market data and persisting it."""
 
-    def __init__(self, polygon: PolygonClient, db) -> None:
+    def __init__(self, polygon: PolygonClient, db: SupabaseDB) -> None:
         self._polygon = polygon
         self._db = db
 
@@ -76,10 +82,10 @@ class DataIngestionService:
                 rows, on_conflict="instrument_id,timestamp,timeframe"
             ).execute()
             result.ingested = len(rows)
-            logger.info(f"Ingested {len(rows)} bars for {ticker} ({timeframe})")
+            logger.info("Ingested %d bars for %s (%s)", len(rows), ticker, timeframe)
         except Exception as e:
             result.errors.append(f"Failed to ingest {ticker}: {e}")
-            logger.error(f"Failed to ingest {ticker}: {e}")
+            logger.error("Failed to ingest %s: %s", ticker, e)
         return result
 
     async def ingest_batch(

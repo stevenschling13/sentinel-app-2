@@ -6,7 +6,7 @@ Uses moving average crossovers, MACD, and ADX for trend confirmation.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 
@@ -22,7 +22,7 @@ class SMACrossover(Strategy):
     ADX is used as a trend strength filter.
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "fast_period": 20,
         "slow_period": 50,
         "adx_period": 14,
@@ -104,7 +104,7 @@ class EMAMomentumTrend(Strategy):
     All three must be aligned for a signal (fast > medium > slow for long).
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "fast_period": 8,
         "medium_period": 21,
         "slow_period": 55,
@@ -178,7 +178,7 @@ class MACDTrend(Strategy):
     MACD histogram direction change.
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "fast": 12,
         "slow": 26,
         "signal_period": 9,

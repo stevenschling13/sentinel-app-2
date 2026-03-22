@@ -8,7 +8,7 @@ from the trading blueprint: diversified return sources.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any
+from typing import Any, ClassVar
 
 from src.strategies.base import OHLCVData, Signal, SignalDirection, Strategy
 
@@ -23,7 +23,7 @@ class CompositeStrategy(Strategy):
     reinforce the signal; conflicting signals cancel out.
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "min_agreement": 2,  # Minimum strategies that must agree
         "min_strength": 0.3,  # Minimum weighted strength to emit
         "conflict_penalty": 0.5,  # Penalty when strategies disagree

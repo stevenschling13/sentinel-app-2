@@ -1,14 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from src.api.deps import get_settings
 from src.config import Settings
 
 router = APIRouter()
 
 
 @router.get("/health")
-async def health_check() -> dict:
+async def health_check(settings: Settings = Depends(get_settings)) -> dict:  # noqa: B008
     """Return service health status."""
-    settings = Settings()
     return {
         "status": "ok",
         "service": "sentinel-engine",

@@ -6,7 +6,7 @@ Uses RSI, Rate of Change, and volume-price analysis.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 
@@ -22,7 +22,7 @@ class RSIMomentum(Strategy):
     Avoids extreme levels where reversal risk is highest.
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "rsi_period": 14,
         "oversold": 30.0,
         "overbought": 70.0,
@@ -100,11 +100,11 @@ class RateOfChangeMomentum(Strategy):
     over a lookback period. Combined with volume confirmation.
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "roc_period": 10,
         "threshold": 3.0,  # Minimum ROC% to trigger signal
         "volume_sma_period": 20,
-        "volume_multiplier": 1.5,  # Volume must be N× above average
+        "volume_multiplier": 1.5,  # Volume must be Nx above average
     }
 
     def __init__(self, params: dict[str, Any] | None = None) -> None:
@@ -148,7 +148,7 @@ class RateOfChangeMomentum(Strategy):
                     reason=(
                         f"Strong upward momentum: "
                         f"ROC={current_roc:.2f}%, "
-                        f"vol={volume_ratio:.1f}×avg"
+                        f"vol={volume_ratio:.1f}xavg"
                     ),
                     metadata={"roc": current_roc, "volume_ratio": volume_ratio},
                 )
@@ -164,7 +164,7 @@ class RateOfChangeMomentum(Strategy):
                     reason=(
                         f"Strong downward momentum: "
                         f"ROC={current_roc:.2f}%, "
-                        f"vol={volume_ratio:.1f}×avg"
+                        f"vol={volume_ratio:.1f}xavg"
                     ),
                     metadata={"roc": current_roc, "volume_ratio": volume_ratio},
                 )
@@ -181,7 +181,7 @@ class OBVDivergence(Strategy):
     Price making new lows with rising OBV = bullish divergence.
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "lookback": 20,
         "obv_sma_period": 10,
     }

@@ -52,7 +52,7 @@ async def get_account() -> dict:
         return await broker.get_account()
     except Exception as exc:
         logger.error("Failed to fetch account: %s", exc)
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail="Failed to fetch account") from exc
 
 
 @router.get("/positions")
@@ -63,7 +63,7 @@ async def get_positions() -> list[dict]:
         return await broker.get_positions()
     except Exception as exc:
         logger.error("Failed to fetch positions: %s", exc)
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail="Failed to fetch positions") from exc
 
 
 @router.post("/orders")
@@ -84,6 +84,10 @@ async def submit_order(body: SubmitOrderBody) -> dict:
             from src.data.polygon_client import PolygonClient
 
             settings = Settings()
+            if not settings.polygon_api_key:
+                raise HTTPException(
+                    status_code=503, detail="Polygon API not configured for price lookup"
+                )
             polygon = PolygonClient(settings.polygon_api_key)
             try:
                 bar = await polygon.get_latest_price(body.symbol.upper(), interactive=True)
@@ -148,7 +152,7 @@ async def submit_order(body: SubmitOrderBody) -> dict:
         raise
     except Exception as exc:
         logger.error("Order submission failed: %s", exc)
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail="Order submission failed") from exc
 
 
 @router.get("/orders")
@@ -159,7 +163,7 @@ async def get_orders(status: str = "open") -> list[dict]:
         return await broker.get_orders(status=status)
     except Exception as exc:
         logger.error("Failed to fetch orders: %s", exc)
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail="Failed to fetch orders") from exc
 
 
 @router.get("/orders/history")
@@ -202,4 +206,4 @@ async def cancel_order(order_id: str) -> dict:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
         logger.error("Failed to cancel order: %s", exc)
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail="Failed to cancel order") from exc
