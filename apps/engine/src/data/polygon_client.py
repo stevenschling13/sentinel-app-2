@@ -176,7 +176,7 @@ class PolygonClient:
                 if retry_on_rate_limit and attempt < _MAX_RETRIES:
                     wait = _INITIAL_BACKOFF * (2**attempt)
                     logger.warning(
-                        "Polygon connection error on %s (error=%s, attempt %d/%d), retrying in %.1fs",
+                        "Polygon conn error on %s (err=%s, attempt %d/%d), retry in %.1fs",
                         url,
                         exc,
                         attempt + 1,
