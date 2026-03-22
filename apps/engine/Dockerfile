@@ -5,9 +5,9 @@ WORKDIR /app
 # Install uv for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copy project files (context is monorepo root)
-COPY apps/engine/pyproject.toml apps/engine/uv.lock ./
-COPY apps/engine/src/ src/
+# Copy project files (context is apps/engine/ via RAILWAY_ROOT_DIRECTORY)
+COPY pyproject.toml uv.lock ./
+COPY src/ src/
 
 # Install dependencies
 RUN uv sync --no-dev --frozen
