@@ -17,7 +17,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16",
     "express": "^4",
-    "node-cron": "^3"
+    "node-cron": "^4"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
