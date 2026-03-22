@@ -28,6 +28,7 @@ export function Sidebar() {
 
   return (
     <aside
+      aria-label="Sidebar"
       className={cn(
         'fixed inset-y-0 left-0 z-30 flex flex-col border-r border-border bg-card transition-all duration-200',
         sidebarOpen ? 'w-56' : 'w-16',
@@ -46,7 +47,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-2">
+      <nav aria-label="Main navigation" className="flex-1 space-y-1 p-2">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (

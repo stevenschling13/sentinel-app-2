@@ -2,6 +2,9 @@
   "name": "@sentinel/web",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -36,6 +39,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/coverage-v8": "^4.1.0",
     "eslint": "^10",
     "eslint-config-next": "16.2.1",
     "jsdom": "^29.0.1",

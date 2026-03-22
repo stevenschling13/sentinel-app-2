@@ -5,5 +5,10 @@ export default defineConfig({
     globals: true,
     include: ['src/**/*.test.ts'],
     testTimeout: 10_000,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/__tests__/**'],
+    },
   },
 });

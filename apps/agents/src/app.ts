@@ -1,11 +1,21 @@
 import express, { type Express } from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { getMissingAgentEnvVars } from './env.js';
 
 export const app: Express = express();
 
 app.use(cors({ origin: process.env.WEB_URL || 'http://localhost:3000' }));
 app.use(express.json());
+
+const limiter = rateLimit({
+  windowMs: 60 * 1_000,
+  limit: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+app.use(limiter);
 
 // ── Health ──────────────────────────────────────────────────
 app.get('/health', (_req, res) => {

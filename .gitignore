@@ -43,3 +43,4 @@ supabase/.temp/
 .vercel/
 
 .vercel
+apps/engine/.coverage
