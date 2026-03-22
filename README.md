@@ -1,42 +1,28 @@
 # Sentinel Trading Platform 2.0
 
 [![CI](https://github.com/stevenschling13/sentinel-app-2/actions/workflows/ci.yml/badge.svg)](https://github.com/stevenschling13/sentinel-app-2/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Autonomous stock trading platform with AI-powered agents, a Python quant engine, and a Next.js dashboard.
 
 ## Architecture
 
-```
-                    +------------------+
-                    |   Next.js Web    |
-                    |  (Vercel)        |
-                    +--------+---------+
-                             |
-              +--------------+--------------+
-              |                             |
-    +---------v----------+      +-----------v--------+
-    |   Python Engine    |      |   Agent Orchestrator|
-    |   (Railway)        |      |   (Railway)         |
-    +--------+-----------+      +-----------+---------+
-              |                             |
-              +--------------+--------------+
-                             |
-                    +--------v---------+
-                    |    Supabase      |
-                    |  (PostgreSQL)    |
-                    +------------------+
-```
+| Service | Stack | Directory | Deploy |
+|---------|-------|-----------|--------|
+| **Web** | Next.js 16, TypeScript, Tailwind | `apps/web/` | Vercel |
+| **Engine** | Python 3.13, FastAPI, NumPy, Pandas | `apps/engine/` | Railway |
+| **Agents** | TypeScript, AI orchestration | `apps/agents/` | Railway |
+| **Shared** | TypeScript types &amp; utilities | `packages/shared/` | — |
+| **Database** | PostgreSQL, Row Level Security | `supabase/` | Supabase |
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Web | Next.js 16, React 19, Tailwind 4, Zustand |
-| Engine | Python 3.13, FastAPI, NumPy, Polygon.io, Alpaca |
-| Agents | TypeScript, Anthropic SDK, Express |
-| Database | Supabase (PostgreSQL + Realtime) |
-| Monorepo | pnpm workspaces, Turborepo |
+- **Monorepo**: Turborepo + pnpm workspaces
+- **Frontend**: Next.js 16, React, Tailwind CSS
+- **Backend**: FastAPI, Pydantic, uv
+- **AI Agents**: TypeScript-based autonomous trading agents
+- **Database**: Supabase (PostgreSQL + Auth + Realtime)
+- **CI/CD**: GitHub Actions, Vercel, Railway
 
 ## Quick Start
 
@@ -45,34 +31,50 @@ Autonomous stock trading platform with AI-powered agents, a Python quant engine,
 git clone https://github.com/stevenschling13/sentinel-app-2.git
 cd sentinel-app-2
 
-# Install JS dependencies
+# Install dependencies
 pnpm install
-
-# Install Python dependencies
 cd apps/engine && uv sync && cd ../..
 
 # Configure environment
 cp .env.example .env
-# Fill in: Supabase, Polygon.io, Alpaca, Anthropic API keys
+# Fill in your credentials (see .env.example for guidance)
 
-# Start all services
+# Start development
 pnpm dev
 ```
 
-Services start on:
-- **Web**: http://localhost:3000
-- **Engine**: http://localhost:8000
-- **Agents**: http://localhost:3001
+## Project Structure
+
+```
+sentinel-app-2/
+├── apps/
+│   ├── web/           # Next.js 16 dashboard
+│   ├── engine/        # Python FastAPI quant engine
+│   └── agents/        # TypeScript AI agents
+├── packages/
+│   └── shared/        # Shared types & utilities
+├── supabase/          # Database migrations
+├── turbo.json         # Turborepo config
+├── pnpm-workspace.yaml
+└── package.json
+```
 
 ## Deployment
 
 | Service | Platform | URL |
 |---------|----------|-----|
-| Web | Vercel | sentinel-app-2.vercel.app |
-| Engine | Railway | engine-production-8052.up.railway.app |
-| Agents | Railway | agents-production-633a.up.railway.app |
-| Database | Supabase | luwyjfwauljwsfsnwiqb.supabase.co |
+| Web | Vercel | [sentinel-app-2.vercel.app](https://sentinel-app-2.vercel.app) |
+| Engine | Railway | Internal API |
+| Database | Supabase | Managed PostgreSQL |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) © 2026 Steven Schlingman
