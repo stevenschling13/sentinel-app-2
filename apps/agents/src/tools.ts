@@ -13,7 +13,10 @@ import {
   PositionSizeSchema,
   RiskCheckSchema,
   AnalyzeTickerSchema,
+  SubmitOrderSchema,
   CreateAlertSchema,
+  NewsSentimentSchema,
+  EarningsCheckSchema,
 } from './tool-executor.js';
 import { z } from 'zod';
 
@@ -64,27 +67,52 @@ function createAllTools(executor: ToolExecutor) {
       inputSchema: AnalyzeTickerSchema,
       execute: async (input) => executor.analyzeTicker(input),
     }),
+    submit_order: tool({
+      description:
+        'Submit a trade order (buy or sell) for a given ticker and quantity via the execution engine.',
+      inputSchema: SubmitOrderSchema,
+      execute: async (input) => executor.submitOrder(input),
+    }),
     create_alert: tool({
       description: 'Create a trading alert shown on the dashboard.',
       inputSchema: CreateAlertSchema,
       execute: async (input) => executor.createAlert(input),
     }),
+    get_news_sentiment: tool({
+      description: 'Get latest financial news and sentiment analysis for tickers.',
+      inputSchema: NewsSentimentSchema,
+      execute: async (input) => executor.getNewsSentiment(input),
+    }),
+    check_earnings_calendar: tool({
+      description: 'Check upcoming earnings dates. Avoid opening positions 2 days before earnings.',
+      inputSchema: EarningsCheckSchema,
+      execute: async (input) => executor.checkEarnings(input),
+    }),
   };
 }
 
 const AGENT_TOOLS: Record<AgentRole, string[]> = {
-  market_sentinel: ['get_market_data', 'get_market_sentiment', 'create_alert'],
+  market_sentinel: [
+    'get_market_data',
+    'get_market_sentiment',
+    'get_news_sentiment',
+    'create_alert',
+  ],
   strategy_analyst: [
     'run_strategy_scan',
     'get_strategy_info',
     'get_market_data',
     'analyze_ticker',
+    'get_news_sentiment',
+    'check_earnings_calendar',
+    'submit_order',
     'create_alert',
   ],
   risk_monitor: [
     'assess_portfolio_risk',
     'check_risk_limits',
     'calculate_position_size',
+    'check_earnings_calendar',
     'create_alert',
   ],
 };

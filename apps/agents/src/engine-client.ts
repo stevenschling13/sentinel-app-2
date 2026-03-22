@@ -247,6 +247,25 @@ export class EngineClient {
     return this.request(`/api/v1/data/quotes?tickers=${tickers.join(',')}`);
   }
 
+  async submitOrder(params: {
+    ticker: string;
+    shares: number;
+    side: 'buy' | 'sell';
+    order_type: 'market' | 'limit';
+    limit_price?: number;
+  }): Promise<{ order_id: string; status: string; filled_price?: number; filled_at?: string }> {
+    return this.request('/api/v1/orders/submit', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async getOrderStatus(
+    orderId: string,
+  ): Promise<{ order_id: string; status: string; filled_price?: number }> {
+    return this.request(`/api/v1/orders/${orderId}`);
+  }
+
   async preTradeCheck(params: {
     ticker: string;
     shares: number;
@@ -268,5 +287,21 @@ export class EngineClient {
       method: 'POST',
       body: JSON.stringify(params),
     });
+  }
+
+  async getNewsSentiment(ticker: string) {
+    return this.request<any>(`/api/v1/news/sentiment/${ticker}`);
+  }
+
+  async getLatestNews(tickers: string[], limit = 20) {
+    return this.request<any>(`/api/v1/news/latest?tickers=${tickers.join(',')}&limit=${limit}`);
+  }
+
+  async getEarningsCalendar(tickers: string[], days = 14) {
+    return this.request<any>(`/api/v1/calendar/earnings?tickers=${tickers.join(',')}&days=${days}`);
+  }
+
+  async checkEarnings(ticker: string, days = 2) {
+    return this.request<any>(`/api/v1/calendar/earnings/${ticker}/check?days=${days}`);
   }
 }

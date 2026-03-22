@@ -9,8 +9,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.api.routes.backtest import router as backtest_router
+from src.api.routes.calendar import router as calendar_router
 from src.api.routes.data import router as data_router
 from src.api.routes.health import router as health_router
+from src.api.routes.news import router as news_router
+from src.api.routes.orders import router as orders_router
 from src.api.routes.portfolio import router as portfolio_router
 from src.api.routes.risk import router as risk_router
 from src.api.routes.strategies import router as strategies_router
@@ -130,9 +133,12 @@ app.add_middleware(
 app.add_middleware(RequestTracingMiddleware)
 
 app.include_router(health_router)
+app.include_router(backtest_router, prefix="/api/v1")
+app.include_router(calendar_router, prefix="/api/v1")
 app.include_router(data_router, prefix="/api/v1")
+app.include_router(news_router, prefix="/api/v1")
+app.include_router(orders_router, prefix="/api/v1")
 app.include_router(portfolio_router, prefix="/api/v1")
 app.include_router(risk_router, prefix="/api/v1")
 app.include_router(strategies_router, prefix="/api/v1")
 app.include_router(stream_router, prefix="/api/v1")
-app.include_router(backtest_router, prefix="/api/v1")

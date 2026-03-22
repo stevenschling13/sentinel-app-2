@@ -51,11 +51,29 @@ export const AnalyzeTickerSchema = z.object({
   depth: z.enum(['quick', 'standard', 'deep']).optional().default('standard'),
 });
 
+export const SubmitOrderSchema = z.object({
+  ticker: z.string().min(1).max(10),
+  shares: z.number().int().positive(),
+  side: z.enum(['buy', 'sell']),
+  order_type: z.enum(['market', 'limit']).optional().default('market'),
+  limit_price: z.number().positive().optional(),
+});
+
 export const CreateAlertSchema = z.object({
   severity: z.enum(['info', 'warning', 'critical']),
   title: z.string().min(1).max(200),
   message: z.string().min(1).max(1000),
   ticker: z.string().optional(),
+});
+
+export const NewsSentimentSchema = z.object({
+  tickers: z.array(z.string()).optional().default([]),
+  limit: z.number().optional().default(10),
+});
+
+export const EarningsCheckSchema = z.object({
+  tickers: z.array(z.string()).min(1),
+  days_ahead: z.number().optional().default(14),
 });
 
 export class ToolExecutor {
@@ -256,10 +274,50 @@ export class ToolExecutor {
     };
   }
 
+  async submitOrder(input: z.infer<typeof SubmitOrderSchema>) {
+    const { ticker, shares, side, order_type, limit_price } = input;
+    return this.engine.submitOrder({
+      ticker: ticker.toUpperCase(),
+      shares,
+      side,
+      order_type,
+      limit_price,
+    });
+  }
+
   async createAlert(input: z.infer<typeof CreateAlertSchema>) {
     const { severity, title, message, ticker } = input;
     const alertData: AlertCreate = { severity, title, message };
     if (ticker) alertData.ticker = ticker;
-    return dbCreateAlert(alertData);
+    const result = await dbCreateAlert(alertData);
+
+    // Send Discord notification for critical/warning alerts
+    if (severity !== 'info') {
+      import('./notifier.js')
+        .then(({ notifier }) => notifier.sendAlert({ severity, title, message, ticker }))
+        .catch(() => {});
+    }
+
+    return result;
+  }
+
+  async getNewsSentiment(input: z.infer<typeof NewsSentimentSchema>) {
+    const { tickers } = input;
+    const tickerParam = tickers.length > 0 ? tickers.join(',') : 'AAPL,MSFT,GOOGL,AMZN';
+    const firstTicker = tickerParam.split(',')[0];
+    try {
+      return await this.engine.getNewsSentiment(firstTicker);
+    } catch {
+      return { sentiment: 'unknown', message: 'News data unavailable' };
+    }
+  }
+
+  async checkEarnings(input: z.infer<typeof EarningsCheckSchema>) {
+    const { tickers, days_ahead } = input;
+    try {
+      return await this.engine.getEarningsCalendar(tickers, days_ahead);
+    } catch {
+      return { earnings: [], message: 'Earnings data unavailable' };
+    }
   }
 }
