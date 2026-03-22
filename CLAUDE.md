@@ -1,81 +1,54 @@
-# Agent Instructions
+# Sentinel Trading Platform 2.0
 
-You're working inside the **WAT framework** (Workflows, Agents, Tools). This architecture separates concerns so that probabilistic AI handles reasoning while deterministic code handles execution. That separation is what makes this system reliable.
+Autonomous stock trading platform with AI-powered agents, a Python quantitative engine, and a Next.js dashboard.
 
-## The WAT Architecture
-
-**Layer 1: Workflows (The Instructions)**
-
-* Markdown SOPs stored in `workflows/`
-* Each workflow defines the objective, required inputs, which tools to use, expected outputs, and how to handle edge cases
-* Written in plain language, the same way you'd brief someone on your team
-
-**Layer 2: Agents (The Decision-Maker)**
-
-* This is your role. You're responsible for intelligent coordination.
-* Read the relevant workflow, run tools in the correct sequence, handle failures gracefully, and ask clarifying questions when needed
-* You connect intent to execution without trying to do everything yourself
-* Example: If you need to pull data from a website, don't attempt it directly. Read `workflows/scrape\_website.md`, figure out the required inputs, then execute `tools/scrape\_single\_site.py`
-
-**Layer 3: Tools (The Execution)**
-
-* Python scripts in `tools/` that do the actual work
-* API calls, data transformations, file operations, database queries
-* Credentials and API keys are stored in `.env`
-* These scripts are consistent, testable, and fast
-
-**Why this matters:** When AI tries to handle every step directly, accuracy drops fast. If each step is 90% accurate, you're down to 59% success after just five steps. By offloading execution to deterministic scripts, you stay focused on orchestration and decision-making where you excel.
-
-## How to Operate
-
-**1. Look for existing tools first**
-Before building anything new, check `tools/` based on what your workflow requires. Only create new scripts when nothing exists for that task.
-
-**2. Learn and adapt when things fail**
-When you hit an error:
-
-* Read the full error message and trace
-* Fix the script and retest (if it uses paid API calls or credits, check with me before running again)
-* Document what you learned in the workflow (rate limits, timing quirks, unexpected behavior)
-* Example: You get rate-limited on an API, so you dig into the docs, discover a batch endpoint, refactor the tool to use it, verify it works, then update the workflow so this never happens again
-
-**3. Keep workflows current**
-Workflows should evolve as you learn. When you find better methods, discover constraints, or encounter recurring issues, update the workflow. That said, don't create or overwrite workflows without asking unless I explicitly tell you to. These are your instructions and need to be preserved and refined, not tossed after one use.
-
-## The Self-Improvement Loop
-
-Every failure is a chance to make the system stronger:
-
-1. Identify what broke
-2. Fix the tool
-3. Verify the fix works
-4. Update the workflow with the new approach
-5. Move on with a more robust system
-
-This loop is how the framework improves over time.
-
-## File Structure
-
-**What goes where:**
-
-* **Deliverables**: Final outputs go to cloud services (Google Sheets, Slides, etc.) where I can access them directly
-* **Intermediates**: Temporary processing files that can be regenerated
-
-**Directory layout:**
+## Architecture
 
 ```
-.tmp/           # Temporary files (scraped data, intermediate exports). Regenerated as needed.
-tools/          # Python scripts for deterministic execution
-workflows/      # Markdown SOPs defining what to do and how
-.env            # API keys and environment variables (NEVER store secrets anywhere else)
-credentials.json, token.json  # Google OAuth (gitignored)
+apps/
+├── web/       # Next.js 16 dashboard (React 19, Tailwind 4, Zustand)
+├── engine/    # Python FastAPI (strategies, backtest, data, risk)
+└── agents/    # TypeScript agent orchestrator (3 Claude agents)
+packages/
+└── shared/    # Shared TypeScript types
+supabase/
+└── migrations/  # PostgreSQL schema
 ```
 
-**Core principle:** Local files are just for processing. Anything I need to see or use lives in cloud services. Everything in `.tmp/` is disposable.
+**Deploy targets**: Vercel (web) → Railway (engine, agents) → Supabase (database)
 
-## Bottom Line
+## Tech Stack
 
-You sit between what I want (workflows) and what actually gets done (tools). Your job is to read instructions, make smart decisions, call the right tools, recover from errors, and keep improving the system as you go.
+- **Web**: Next.js 16, React 19, Tailwind 4, Zustand, Supabase SSR, Geist fonts
+- **Engine**: Python 3.12+, FastAPI, NumPy, Polygon.io, Alpaca
+- **Agents**: TypeScript, Anthropic SDK, 3-agent orchestrator (Market Sentinel, Strategy Analyst, Risk Monitor)
+- **Database**: Supabase (PostgreSQL), Realtime subscriptions
+- **Monorepo**: pnpm workspaces, Turborepo
 
-Stay pragmatic. Stay reliable. Keep learning.
+## Commands
 
+```bash
+pnpm dev              # Start all services via Turbo
+pnpm build            # Build all packages
+pnpm test:engine      # Run Python tests
+pnpm lint:engine      # Lint Python with ruff
+
+cd apps/web && pnpm dev        # Web only (port 3000)
+cd apps/engine && uv run uvicorn src.api.main:app --reload  # Engine only (port 8000)
+cd apps/agents && pnpm dev     # Agents only (port 3001)
+```
+
+## Key Patterns
+
+- **Engine proxy**: Client fetches go through `/api/engine/[...path]` and `/api/agents/[...path]` route handlers. API keys stay server-side.
+- **Health polling**: `useServiceHealth` hook polls every 15s, writes to Zustand. Mount once in AppShell.
+- **Strategy scanning**: Engine runs 12 strategies across watchlist tickers. Agents orchestrate scans on a cycle.
+- **Risk management**: Circuit breakers at 10% (soft) and 15% (hard) drawdown. Max 5% per position, 20% per sector.
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in credentials. Required services:
+- Supabase (database + auth)
+- Polygon.io (market data)
+- Alpaca (paper trading broker)
+- Anthropic (AI agents)
