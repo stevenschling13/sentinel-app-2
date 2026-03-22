@@ -1,0 +1,17 @@
+{
+  "name": "sentinel-app-2",
+  "private": true,
+  "packageManager": "pnpm@10.12.1",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "test:engine": "cd apps/engine && uv run python -m pytest tests/ -v",
+    "lint:engine": "cd apps/engine && uv run python -m ruff check src tests",
+    "clean": "turbo clean"
+  },
+  "devDependencies": {
+    "turbo": "^2"
+  }
+}
