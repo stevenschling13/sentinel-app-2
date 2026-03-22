@@ -11,6 +11,7 @@ import { useAppStore } from '@/stores/app-store';
 import { useRealtimeAlerts } from '@/hooks/use-realtime-alerts';
 import { useRealtimeSignals } from '@/hooks/use-realtime-signals';
 import { usePriceStream } from '@/hooks/use-price-stream';
+import { useNotificationToast } from '@/hooks/use-notification-toast';
 import type { MarketQuote, BrokerAccount } from '@/lib/engine-client';
 import { cn } from '@/lib/utils';
 import { engineUrl, engineHeaders } from '@/lib/engine-fetch';
@@ -57,6 +58,7 @@ export default function DashboardPage() {
   const { alerts: rtAlerts, isSubscribed: alertsSub } = useRealtimeAlerts();
   const { signals: rtSignals, isSubscribed: signalsSub } = useRealtimeSignals();
   const { prices: streamPrices, isStreaming } = usePriceStream();
+  useNotificationToast();
   const realtimeConnected = alertsSub || signalsSub;
 
   // Merge REST alerts with realtime alerts (dedup by id, realtime first)

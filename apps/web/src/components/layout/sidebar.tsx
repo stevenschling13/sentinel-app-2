@@ -9,12 +9,14 @@ import {
   Briefcase,
   Zap,
   Settings,
+  CandlestickChart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/chart/SPY', label: 'Charts', icon: CandlestickChart },
   { href: '/strategies', label: 'Strategies', icon: BarChart3 },
   { href: '/backtest', label: 'Backtest', icon: TrendingUp },
   { href: '/portfolio', label: 'Portfolio', icon: Briefcase },
@@ -40,16 +42,15 @@ export function Sidebar() {
           <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center">
             <span className="text-xs font-bold text-primary-foreground">S</span>
           </div>
-          {sidebarOpen && (
-            <span className="text-sm font-semibold tracking-tight">Sentinel</span>
-          )}
+          {sidebarOpen && <span className="text-sm font-semibold tracking-tight">Sentinel</span>}
         </Link>
       </div>
 
       {/* Navigation */}
       <nav aria-label="Main navigation" className="flex-1 space-y-1 p-2">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href;
+          const active =
+            pathname === href || (href.startsWith('/chart/') && pathname.startsWith('/chart/'));
           return (
             <Link
               key={href}
@@ -87,15 +88,12 @@ function StatusDot() {
         ? 'bg-red-400'
         : 'bg-yellow-400';
 
-  const label =
-    engineOnline === true ? 'Online' : engineOnline === false ? 'Offline' : 'Checking…';
+  const label = engineOnline === true ? 'Online' : engineOnline === false ? 'Offline' : 'Checking…';
 
   return (
     <div className="flex items-center gap-2">
       <span className={cn('h-2 w-2 rounded-full', color)} />
-      {sidebarOpen && (
-        <span className="text-xs text-muted-foreground">{label}</span>
-      )}
+      {sidebarOpen && <span className="text-xs text-muted-foreground">{label}</span>}
     </div>
   );
 }

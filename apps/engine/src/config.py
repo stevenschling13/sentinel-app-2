@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     # External APIs
     polygon_api_key: str = ""
+    finnhub_api_key: str = ""
 
     # Engine
     engine_api_key: str = ""
