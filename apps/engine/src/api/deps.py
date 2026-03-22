@@ -1,3 +1,5 @@
+"""FastAPI dependency injection providers."""
+
 from functools import lru_cache
 
 from src.config import Settings

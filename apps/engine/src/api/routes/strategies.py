@@ -27,6 +27,9 @@ from src.strategies.signal_generator import SignalGenerator
 logger = logging.getLogger(__name__)
 
 
+# Delay between Polygon API calls to respect free-tier rate limits.
+_POLYGON_RATE_LIMIT_DELAY = 0.3
+
 router = APIRouter(prefix="/strategies", tags=["strategies"])
 
 
@@ -226,7 +229,7 @@ async def scan_signals(request: ScanRequest) -> ScanResponse:
             except Exception as exc:
                 fetch_errors.append(f"{ticker}: {exc}")
             if polygon is not None and i < len(tickers) - 1:
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(_POLYGON_RATE_LIMIT_DELAY)
     finally:
         if polygon is not None:
             await polygon.close()

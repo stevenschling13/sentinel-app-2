@@ -1,7 +1,11 @@
 """Data ingestion and live market data API routes."""
 
+from __future__ import annotations
+
+import asyncio
 import logging
 from datetime import date, timedelta
+from typing import TYPE_CHECKING
 
 import httpx
 from fastapi import APIRouter, HTTPException
@@ -10,6 +14,9 @@ from pydantic import BaseModel, Field
 from src.config import Settings
 from src.data.polygon_client import PolygonClient
 from src.db import get_db
+
+if TYPE_CHECKING:
+    from src.data.polygon_client import PolygonBar
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +64,7 @@ class MarketBar(BaseModel):
     vwap: float | None = None
 
 
-def _bar_to_quote(ticker: str, bar) -> MarketQuote:
+def _bar_to_quote(ticker: str, bar: PolygonBar) -> MarketQuote:
     """Convert a PolygonBar to a MarketQuote response."""
     return MarketQuote(
         ticker=ticker,
@@ -112,7 +119,7 @@ async def get_quote(ticker: str) -> MarketQuote:
         if exc.response.status_code == 429:
             raise HTTPException(
                 status_code=429, detail="Polygon rate limit exceeded. Try again shortly."
-            )
+            ) from exc
         raise
     finally:
         await polygon.close()
@@ -122,27 +129,26 @@ async def get_quote(ticker: str) -> MarketQuote:
 async def get_quotes(tickers: str = "AAPL,MSFT,GOOGL,AMZN,NVDA,TSLA,META,SPY") -> list[MarketQuote]:
     """Fetch latest prices for multiple tickers (comma-separated).
 
-    Uses fast-fail interactive requests and cached fallbacks so browser traffic
-    does not stall behind long provider backoff cycles.
+    Uses concurrent requests with graceful error handling so browser traffic
+    does not stall behind sequential provider calls.
     """
     ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     polygon = _get_polygon()
-    quotes: list[MarketQuote] = []
     try:
-        for ticker in ticker_list:
-            try:
-                bar = await polygon.get_latest_price(ticker, interactive=True)
-                if bar:
-                    quotes.append(_bar_to_quote(ticker, bar))
-            except httpx.HTTPStatusError as exc:
-                if exc.response.status_code == 429:
-                    logger.warning("Rate limited fetching %s, skipping remaining tickers", ticker)
-                    break
-                logger.warning("Failed to fetch %s: %s", ticker, exc)
+        results = await asyncio.gather(
+            *(polygon.get_latest_price(t, interactive=True) for t in ticker_list),
+            return_exceptions=True,
+        )
+        quotes: list[MarketQuote] = []
+        for ticker, result in zip(ticker_list, results, strict=True):
+            if isinstance(result, BaseException):
+                logger.warning("Failed to fetch %s: %s", ticker, result)
+                continue
+            if result is not None:
+                quotes.append(_bar_to_quote(ticker, result))
+        return quotes
     finally:
         await polygon.close()
-
-    return quotes
 
 
 @router.get("/bars/{ticker}", response_model=list[MarketBar])
@@ -179,7 +185,7 @@ async def get_bars(
         if exc.response.status_code == 429:
             raise HTTPException(
                 status_code=429, detail="Polygon rate limit exceeded. Try again shortly."
-            )
+            ) from exc
         raise
     finally:
         await polygon.close()

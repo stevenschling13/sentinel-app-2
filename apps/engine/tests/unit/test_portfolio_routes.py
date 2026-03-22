@@ -54,9 +54,13 @@ class TestPortfolioEndpoints:
 
     @patch(_PATCH_GET_BROKER)
     @patch("src.data.polygon_client.PolygonClient")
-    def test_submit_order_paper(self, mock_poly_cls, mock_get_broker):
+    @patch("src.config.Settings")
+    def test_submit_order_paper(self, mock_settings_cls, mock_poly_cls, mock_get_broker):
         broker = PaperBroker(initial_capital=100_000)
         mock_get_broker.return_value = broker
+
+        mock_settings = mock_settings_cls.return_value
+        mock_settings.polygon_api_key = "test-key"
 
         mock_polygon = AsyncMock()
         mock_bar = AsyncMock()
@@ -93,10 +97,14 @@ class TestPortfolioEndpoints:
 
     @patch(_PATCH_GET_BROKER)
     @patch("src.data.polygon_client.PolygonClient")
-    def test_get_order_by_id(self, mock_poly_cls, mock_get_broker):
+    @patch("src.config.Settings")
+    def test_get_order_by_id(self, mock_settings_cls, mock_poly_cls, mock_get_broker):
         """GET /orders/{id} should return a stored order."""
         broker = PaperBroker(initial_capital=100_000)
         mock_get_broker.return_value = broker
+
+        mock_settings = mock_settings_cls.return_value
+        mock_settings.polygon_api_key = "test-key"
 
         mock_polygon = AsyncMock()
         mock_bar = AsyncMock()

@@ -6,7 +6,7 @@ between correlated instruments. Uses spread z-scores and correlation analysis.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -71,7 +71,7 @@ class PairsSpreadTrading(Strategy):
     when the spread diverges significantly from equilibrium.
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "lookback": 60,
         "entry_z": 2.0,
         "exit_z": 0.5,
@@ -119,7 +119,7 @@ class PairsSpreadTrading(Strategy):
             return []
 
         # Compute spread on recent window
-        spread, beta, intercept = compute_spread(close_a[-lookback:], close_b[-lookback:])
+        spread, beta, _intercept = compute_spread(close_a[-lookback:], close_b[-lookback:])
         spread_mean = np.mean(spread)
         spread_std = np.std(spread, ddof=1)
 

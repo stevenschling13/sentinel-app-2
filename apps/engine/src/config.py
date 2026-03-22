@@ -1,3 +1,5 @@
+import logging
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,7 +20,7 @@ class Settings(BaseSettings):
     polygon_api_key: str = ""
 
     # Engine
-    engine_api_key: str = "sentinel-dev-key"
+    engine_api_key: str = ""
 
     # Broker
     broker_mode: str = "paper"
@@ -31,11 +33,11 @@ class Settings(BaseSettings):
 
     def validate(self) -> None:
         """Raise ValueError if any required environment variable is missing."""
-        import logging
 
         required = {
             "SUPABASE_URL": self.supabase_url,
             "SUPABASE_SERVICE_ROLE_KEY": self.supabase_service_role_key,
+            "ENGINE_API_KEY": self.engine_api_key,
         }
         missing = [name for name, value in required.items() if not value]
         if missing:
@@ -50,3 +52,13 @@ class Settings(BaseSettings):
         for name, value in optional_warnings.items():
             if not value:
                 logging.warning("Optional env var %s is not set — related features disabled.", name)
+        if self.alpaca_api_key and not self.alpaca_secret_key:
+            logging.warning(
+                "ALPACA_API_KEY is set but ALPACA_SECRET_KEY is missing — "
+                "Alpaca broker will not be available."
+            )
+        if self.alpaca_secret_key and not self.alpaca_api_key:
+            logging.warning(
+                "ALPACA_SECRET_KEY is set but ALPACA_API_KEY is missing — "
+                "Alpaca broker will not be available."
+            )

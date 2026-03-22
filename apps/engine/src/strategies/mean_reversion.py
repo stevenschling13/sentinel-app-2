@@ -6,7 +6,7 @@ to their mean. Uses Bollinger Bands, RSI extremes, and z-scores.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 
@@ -22,7 +22,7 @@ class BollingerReversion(Strategy):
     RSI confirmation prevents catching falling knives.
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "bb_period": 20,
         "bb_std": 2.0,
         "rsi_period": 14,
@@ -118,7 +118,7 @@ class ZScoreReversion(Strategy):
     Enters positions when z-score exceeds threshold, expecting reversion.
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "lookback": 50,
         "entry_z": 2.0,
         "exit_z": 0.5,
@@ -184,7 +184,7 @@ class RSIMeanReversion(Strategy):
     anticipating a snapback. Uses multi-period RSI confirmation.
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "fast_rsi_period": 7,
         "slow_rsi_period": 14,
         "extreme_oversold": 20.0,

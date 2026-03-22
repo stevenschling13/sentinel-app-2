@@ -8,6 +8,7 @@ API for CRUD operations.
 
 import logging
 from functools import lru_cache
+from typing import Any
 
 from postgrest import SyncPostgrestClient
 
@@ -30,11 +31,11 @@ class SupabaseDB:
             headers=self._headers,
         )
 
-    def table(self, name: str):
+    def table(self, name: str) -> Any:
         """Access a table for CRUD operations (same API as supabase-py)."""
         return self._client.from_(name)
 
-    def rpc(self, fn: str, params: dict | None = None):
+    def rpc(self, fn: str, params: dict | None = None) -> Any:
         """Call a Postgres function via PostgREST."""
         return self._client.rpc(fn, params or {})
 

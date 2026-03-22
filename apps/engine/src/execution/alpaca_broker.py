@@ -162,3 +162,9 @@ class AlpacaBroker(BrokerAdapter):
     async def close(self) -> None:
         """Close the underlying HTTP client."""
         await self._http.aclose()
+
+    async def __aenter__(self) -> "AlpacaBroker":
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        await self.close()

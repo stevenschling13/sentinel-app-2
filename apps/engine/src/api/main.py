@@ -14,6 +14,7 @@ from src.api.routes.portfolio import router as portfolio_router
 from src.api.routes.risk import router as risk_router
 from src.api.routes.strategies import router as strategies_router
 from src.config import Settings
+from src.middleware.tracing import RequestTracingMiddleware
 
 # Paths that don't require an API key (health checks, OpenAPI docs)
 _PUBLIC_PATHS = frozenset({"/health", "/docs", "/openapi.json", "/redoc"})
@@ -99,6 +100,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestTracingMiddleware)
 
 app.include_router(health_router)
 app.include_router(data_router, prefix="/api/v1")

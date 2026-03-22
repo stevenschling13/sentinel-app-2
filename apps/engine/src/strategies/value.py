@@ -6,7 +6,7 @@ Uses relative value metrics and price-to-moving-average ratios.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 
@@ -21,7 +21,7 @@ class PriceToMAValue(Strategy):
     long-term moving averages. Significant deviations suggest mispricing.
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "ma_period": 200,
         "entry_deviation": -0.10,  # 10% below MA = long
         "exit_deviation": 0.0,
@@ -96,7 +96,7 @@ class RelativeValue(Strategy):
     instruments that are temporarily mispriced relative to their trend.
     """
 
-    DEFAULT_PARAMS: dict[str, Any] = {
+    DEFAULT_PARAMS: ClassVar[dict[str, Any]] = {
         "short_period": 20,
         "long_period": 100,
         "divergence_threshold": 0.05,
