@@ -19,6 +19,7 @@ import {
   RISK_MONITOR_COOLDOWN_MS,
 } from './config.js';
 import { logger } from './logger.js';
+import { eventBus } from './event-bus.js';
 
 const DEFAULT_CONFIGS: AgentConfig[] = [
   {
@@ -69,8 +70,14 @@ export class Orchestrator {
     }
 
     this.state = {
-      agents: Object.fromEntries(configs.map((c) => [c.role, 'idle'] as const)) as Record<AgentRole, 'idle'>,
-      lastRun: Object.fromEntries(configs.map((c) => [c.role, null] as const)) as Record<AgentRole, null>,
+      agents: Object.fromEntries(configs.map((c) => [c.role, 'idle'] as const)) as Record<
+        AgentRole,
+        'idle'
+      >,
+      lastRun: Object.fromEntries(configs.map((c) => [c.role, null] as const)) as Record<
+        AgentRole,
+        null
+      >,
       cycleCount: 0,
       halted: false,
       lastCycleAt: null,
@@ -90,28 +97,56 @@ export class Orchestrator {
     this.state.cycleCount++;
     const results: AgentResult[] = [];
     logger.info('orchestrator.cycle.start', { cycleCount: this.state.cycleCount });
+    eventBus
+      .publish('cycle.started', {
+        cycleCount: this.state.cycleCount,
+        timestamp: new Date().toISOString(),
+      })
+      .catch(() => {});
 
     for (const role of CYCLE_SEQUENCE) {
-      const result = await this.runAgent(role, DEFAULT_AGENT_PROMPTS[role] ?? `Execute ${role} workflow.`);
+      const result = await this.runAgent(
+        role,
+        DEFAULT_AGENT_PROMPTS[role] ?? `Execute ${role} workflow.`,
+      );
       results.push(result);
     }
 
+    const successCount = results.filter((r) => r.success).length;
     this.state.lastCycleAt = new Date().toISOString();
     logger.info('orchestrator.cycle.complete', {
       cycleCount: this.state.cycleCount,
-      successCount: results.filter((r) => r.success).length,
+      successCount,
     });
+    eventBus
+      .publish('cycle.completed', {
+        cycleCount: this.state.cycleCount,
+        successCount,
+        totalCount: results.length,
+        timestamp: new Date().toISOString(),
+      })
+      .catch(() => {});
     return results;
   }
 
   async runAgent(role: AgentRole, prompt: string): Promise<AgentResult> {
     const agent = this.agents.get(role);
     if (!agent) {
-      return { role, success: false, timestamp: new Date().toISOString(), durationMs: 0, data: null, error: `Agent '${role}' not found` };
+      return {
+        role,
+        success: false,
+        timestamp: new Date().toISOString(),
+        durationMs: 0,
+        data: null,
+        error: `Agent '${role}' not found`,
+      };
     }
 
     logger.info('agent.start', { role });
     this.state.agents[role] = 'running';
+    eventBus
+      .publish('agent.started', { role, timestamp: new Date().toISOString() })
+      .catch(() => {});
 
     const result = await agent.run(prompt);
 
@@ -123,6 +158,14 @@ export class Orchestrator {
     } else {
       logger.error('agent.failed', { role, error: result.error });
     }
+    eventBus
+      .publish('agent.completed', {
+        role,
+        success: result.success,
+        durationMs: result.durationMs,
+        timestamp: result.timestamp,
+      })
+      .catch(() => {});
 
     return result;
   }
@@ -131,7 +174,9 @@ export class Orchestrator {
     if (this.cycleInterval) return;
     logger.info('orchestrator.start', { intervalMs });
     this.runCycle().catch(console.error);
-    this.cycleInterval = setInterval(() => { this.runCycle().catch(console.error); }, intervalMs);
+    this.cycleInterval = setInterval(() => {
+      this.runCycle().catch(console.error);
+    }, intervalMs);
   }
 
   stop(): void {
@@ -146,6 +191,9 @@ export class Orchestrator {
     this.state.halted = true;
     this.stop();
     logger.error('orchestrator.halt', { reason });
+    eventBus
+      .publish('risk.alert', { severity: 'critical', rule: 'halt', message: reason })
+      .catch(() => {});
   }
 
   resume(): void {

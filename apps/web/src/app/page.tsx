@@ -10,6 +10,7 @@ import { OfflineBanner } from '@/components/ui/offline-banner';
 import { useAppStore } from '@/stores/app-store';
 import { useRealtimeAlerts } from '@/hooks/use-realtime-alerts';
 import { useRealtimeSignals } from '@/hooks/use-realtime-signals';
+import { usePriceStream } from '@/hooks/use-price-stream';
 import type { MarketQuote, BrokerAccount } from '@/lib/engine-client';
 import { cn } from '@/lib/utils';
 import { engineUrl, engineHeaders } from '@/lib/engine-fetch';
@@ -55,6 +56,7 @@ export default function DashboardPage() {
 
   const { alerts: rtAlerts, isSubscribed: alertsSub } = useRealtimeAlerts();
   const { signals: rtSignals, isSubscribed: signalsSub } = useRealtimeSignals();
+  const { prices: streamPrices, isStreaming } = usePriceStream();
   const realtimeConnected = alertsSub || signalsSub;
 
   // Merge REST alerts with realtime alerts (dedup by id, realtime first)
@@ -180,14 +182,29 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // When SSE streaming is active, derive ticker data from stream
+  useEffect(() => {
+    if (!isStreaming || streamPrices.size === 0) return;
+    const streamed = TICKER_SYMBOLS.map((sym) => {
+      const p = streamPrices.get(sym);
+      if (!p) return null;
+      return { ticker: sym, price: p.price, change: p.change_pct };
+    }).filter((t): t is NonNullable<typeof t> => t !== null && t.price > 0);
+    if (streamed.length > 0) {
+      setTickerData(streamed);
+      setIsLive(true);
+    }
+  }, [isStreaming, streamPrices]);
+
   useEffect(() => {
     if (engineOnline !== true) {
       setIsLive(false);
       return;
     }
-    fetchPrices();
+    // Initial fetch (account always, prices only if not streaming)
+    if (!isStreaming) fetchPrices();
     fetchAccount();
-  }, [engineOnline, fetchPrices, fetchAccount]);
+  }, [engineOnline, isStreaming, fetchPrices, fetchAccount]);
 
   useEffect(() => {
     if (agentsOnline !== true) {
@@ -198,14 +215,15 @@ export default function DashboardPage() {
     fetchAlerts();
   }, [agentsOnline, fetchAlerts]);
 
+  // Polling: account always at 30s; prices only when not streaming
   useEffect(() => {
     if (engineOnline !== true) return;
     const interval = setInterval(() => {
-      fetchPrices();
+      if (!isStreaming) fetchPrices();
       fetchAccount();
     }, 30_000);
     return () => clearInterval(interval);
-  }, [engineOnline, fetchPrices, fetchAccount]);
+  }, [engineOnline, isStreaming, fetchPrices, fetchAccount]);
 
   const equity = account?.equity ?? 100_000;
   const pnl = equity - (account?.initial_capital ?? 100_000);
@@ -245,7 +263,12 @@ export default function DashboardPage() {
       <div className="relative">
         <PriceTicker items={tickerData} />
         <span className="absolute -top-1.5 right-2">
-          {isLive ? (
+          {isStreaming ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-blue-400 uppercase">
+              <span className="h-1 w-1 rounded-full bg-blue-400 animate-pulse" />
+              Streaming
+            </span>
+          ) : isLive ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-emerald-400 uppercase">
               <span className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse" />
               Live

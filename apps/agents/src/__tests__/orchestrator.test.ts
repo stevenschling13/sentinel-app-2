@@ -19,9 +19,7 @@ vi.mock('../agent.js', () => {
 
 // Mock the ToolExecutor
 vi.mock('../tool-executor.js', () => {
-  const ToolExecutor = function (this: any) {
-    this.execute = vi.fn().mockResolvedValue('{}');
-  };
+  const ToolExecutor = function (this: any) {};
   return { ToolExecutor };
 });
 

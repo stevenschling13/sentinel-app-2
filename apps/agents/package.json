@@ -14,9 +14,11 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.80.0",
+    "@ai-sdk/anthropic": "^3.0.63",
     "@sentinel/shared": "workspace:*",
     "@supabase/supabase-js": "^2",
+    "@upstash/redis": "^1.37.0",
+    "ai": "^6.0.134",
     "cors": "^2.8.5",
     "dotenv": "^16",
     "express": "^4",

@@ -82,3 +82,8 @@ class PriceCache:
         """Register *callback(ticker, entry)* to fire on each update."""
         with self._lock:
             self._subscribers.append(callback)
+
+    def unsubscribe(self, callback: Callable[[str, dict[str, Any]], Any]) -> None:
+        """Remove a previously registered callback."""
+        with self._lock, contextlib.suppress(ValueError):
+            self._subscribers.remove(callback)

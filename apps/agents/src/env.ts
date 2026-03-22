@@ -16,6 +16,8 @@ export const REQUIRED_AGENT_ENV_VARS = [
  * - AUTO_CYCLE: set to "true" to start the orchestrator cycle loop on boot
  * - AGENTS_PORT / PORT: HTTP listen port (default 3001)
  * - WEB_URL: allowed CORS origin (default http://localhost:3000)
+ * - UPSTASH_REDIS_REST_URL: Upstash Redis REST endpoint for cross-service event bus
+ * - UPSTASH_REDIS_REST_TOKEN: Upstash Redis REST auth token
  */
 
 /**

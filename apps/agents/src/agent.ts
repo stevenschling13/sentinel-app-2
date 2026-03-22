@@ -1,9 +1,10 @@
 /**
- * Base Agent class — wraps the Claude API with tool calling (v2).
- * Simplified: no WAT workflow loading, hardcoded system prompts.
+ * Base Agent class — wraps the Vercel AI SDK with tool calling (v2).
+ * Uses generateText for multi-step tool calling with Anthropic models.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { generateText, stepCountIs } from 'ai';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import type { AgentConfig, AgentResult, AgentRole } from './types.js';
 import { getToolsForAgent } from './tools.js';
 import { ToolExecutor } from './tool-executor.js';
@@ -49,72 +50,47 @@ You are the guardian of capital. When in doubt, err on the side of caution.`,
 };
 
 export class Agent {
-  private client: Anthropic;
+  private anthropic: ReturnType<typeof createAnthropic>;
   private executor: ToolExecutor;
   readonly config: AgentConfig;
 
-  constructor(
-    config: AgentConfig,
-    options?: { apiKey?: string; executor?: ToolExecutor },
-  ) {
+  constructor(config: AgentConfig, options?: { apiKey?: string; executor?: ToolExecutor }) {
     this.config = config;
-    this.client = new Anthropic({ apiKey: options?.apiKey ?? process.env.ANTHROPIC_API_KEY });
+    this.anthropic = createAnthropic({ apiKey: options?.apiKey ?? process.env.ANTHROPIC_API_KEY });
     this.executor = options?.executor ?? new ToolExecutor();
   }
 
-  async run(userPrompt: string, maxTurns = 10): Promise<AgentResult> {
+  async run(userPrompt: string, maxSteps = 10): Promise<AgentResult> {
     const startTime = Date.now();
-    const tools = getToolsForAgent(this.config.role);
+    const tools = getToolsForAgent(this.config.role, this.executor);
     const systemPrompt = SYSTEM_PROMPTS[this.config.role];
-    const messages: Anthropic.MessageParam[] = [{ role: 'user', content: userPrompt }];
 
-    let lastTextResponse = '';
+    try {
+      const result = await generateText({
+        model: this.anthropic('claude-sonnet-4-20250514'),
+        system: systemPrompt,
+        prompt: userPrompt,
+        tools,
+        maxOutputTokens: 4096,
+        stopWhen: stepCountIs(maxSteps),
+      });
 
-    for (let turn = 0; turn < maxTurns; turn++) {
-      let response: Anthropic.Message;
-      try {
-        response = await this.client.messages.create({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 4096,
-          system: systemPrompt,
-          tools,
-          messages,
-        });
-      } catch (err) {
-        return {
-          role: this.config.role, success: false,
-          timestamp: new Date().toISOString(), durationMs: Date.now() - startTime,
-          data: null, error: `API error: ${err instanceof Error ? err.message : String(err)}`,
-        };
-      }
-
-      for (const block of response.content) {
-        if (block.type === 'text') lastTextResponse = block.text;
-      }
-
-      if (response.stop_reason === 'end_turn') break;
-
-      const toolUseBlocks = response.content.filter(
-        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
-      );
-      if (toolUseBlocks.length === 0) break;
-
-      messages.push({ role: 'assistant', content: response.content });
-
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-      for (const toolBlock of toolUseBlocks) {
-        const result = await this.executor.execute(
-          toolBlock.name, toolBlock.input as Record<string, unknown>,
-        );
-        toolResults.push({ type: 'tool_result', tool_use_id: toolBlock.id, content: result });
-      }
-      messages.push({ role: 'user', content: toolResults });
+      return {
+        role: this.config.role,
+        success: true,
+        timestamp: new Date().toISOString(),
+        durationMs: Date.now() - startTime,
+        data: result.text,
+      };
+    } catch (err) {
+      return {
+        role: this.config.role,
+        success: false,
+        timestamp: new Date().toISOString(),
+        durationMs: Date.now() - startTime,
+        data: null,
+        error: `API error: ${err instanceof Error ? err.message : String(err)}`,
+      };
     }
-
-    return {
-      role: this.config.role, success: true,
-      timestamp: new Date().toISOString(), durationMs: Date.now() - startTime,
-      data: lastTextResponse,
-    };
   }
 }
