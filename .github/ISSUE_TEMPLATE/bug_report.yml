@@ -1,0 +1,56 @@
+name: Bug Report
+description: Report a bug in the Sentinel Trading Platform
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened.
+    validations:
+      required: true
+  - type: dropdown
+    id: service
+    attributes:
+      label: Affected Service
+      options:
+        - Web (Next.js dashboard)
+        - Engine (Python FastAPI)
+        - Agents (TypeScript orchestrator)
+        - Database (Supabase)
+        - Multiple / Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or logs.
+    validations:
+      required: false
