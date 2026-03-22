@@ -5,16 +5,20 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
 
-# Copy package manifest (context is apps/agents/ via RAILWAY_ROOT_DIRECTORY)
-COPY package.json ./
+# Copy workspace root files needed for pnpm install
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
-# Remove workspace deps (type-only, not needed at runtime) and install
-RUN node -e "const p=require('./package.json'); delete p.dependencies?.['@sentinel/shared']; require('fs').writeFileSync('package.json', JSON.stringify(p,null,2))" \
-    && pnpm install --no-frozen-lockfile
+# Copy the packages this service depends on
+COPY packages/shared/ packages/shared/
+COPY apps/agents/package.json apps/agents/
 
-# Copy source
-COPY src/ src/
-COPY tsconfig.json ./
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy agent source
+COPY apps/agents/ apps/agents/
+
+WORKDIR /app/apps/agents
 
 EXPOSE 3001
 CMD ["pnpm", "start"]
