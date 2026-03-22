@@ -41,3 +41,5 @@ supabase/.temp/
 
 # Vercel
 .vercel/
+
+.vercel
