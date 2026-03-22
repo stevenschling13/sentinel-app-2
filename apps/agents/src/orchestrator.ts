@@ -94,6 +94,19 @@ export class Orchestrator {
       return [];
     }
 
+    // Pre-flight check: is the engine reachable?
+    const engineHealthy = await this.checkEngineHealth();
+    if (!engineHealthy) {
+      logger.warn('orchestrator.cycle.skipped', { reason: 'engine_unreachable' });
+      eventBus
+        .publish('cycle.skipped', {
+          reason: 'engine_unreachable',
+          timestamp: new Date().toISOString(),
+        })
+        .catch(() => {});
+      return [];
+    }
+
     this.state.cycleCount++;
     const results: AgentResult[] = [];
     logger.info('orchestrator.cycle.start', { cycleCount: this.state.cycleCount });
@@ -199,6 +212,18 @@ export class Orchestrator {
   resume(): void {
     this.state.halted = false;
     logger.info('orchestrator.resume');
+  }
+
+  private async checkEngineHealth(): Promise<boolean> {
+    try {
+      const url = process.env.ENGINE_URL ?? 'http://localhost:8000';
+      const res = await fetch(`${url}/health`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
   getAgentInfo() {

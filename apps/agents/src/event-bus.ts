@@ -14,6 +14,11 @@ export interface CycleStartedEvent {
   timestamp: string;
 }
 
+export interface CycleSkippedEvent {
+  reason: string;
+  timestamp: string;
+}
+
 export interface CycleCompletedEvent {
   cycleCount: number;
   successCount: number;
@@ -54,6 +59,7 @@ export interface OrderSubmittedEvent {
 
 export type EventMap = {
   'cycle.started': CycleStartedEvent;
+  'cycle.skipped': CycleSkippedEvent;
   'cycle.completed': CycleCompletedEvent;
   'agent.started': AgentStartedEvent;
   'agent.completed': AgentCompletedEvent;

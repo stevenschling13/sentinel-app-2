@@ -34,6 +34,8 @@ describe('Orchestrator', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Mock fetch so the orchestrator's engine health pre-flight check succeeds
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
     orchestrator = new Orchestrator({ apiKey: 'test-key' });
   });
 

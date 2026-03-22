@@ -23,11 +23,29 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // ── Health ──────────────────────────────────────────────────
-app.get('/health', (_req, res) => {
+app.get('/health', async (_req, res) => {
   const missing = getMissingAgentEnvVars();
+
+  // Quick engine connectivity check
+  let engineStatus = 'unknown';
+  try {
+    const engineUrl = process.env.ENGINE_URL ?? 'http://localhost:8000';
+    const engineRes = await fetch(`${engineUrl}/health`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    engineStatus = engineRes.ok ? 'ok' : 'degraded';
+  } catch {
+    engineStatus = 'unreachable';
+  }
+
   res.json({
     status: missing.length === 0 ? 'ok' : 'degraded',
     service: 'sentinel-agents',
+    engine: engineStatus,
+    orchestrator: {
+      halted: orchestrator.currentState.halted,
+      cycleCount: orchestrator.currentState.cycleCount,
+    },
     missing: missing.length > 0 ? missing : undefined,
   });
 });
@@ -117,5 +135,71 @@ app.get('/recommendations', async (req, res) => {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logger.error('route.recommendations.error', { error: message });
     res.json({ recommendations: [] });
+  }
+});
+
+// ── Recommendation approval ─────────────────────────────────
+app.post('/recommendations/:id/approve', async (req, res) => {
+  try {
+    const { atomicApprove } = await import('./recommendations-store.js');
+    const rec = await atomicApprove(req.params.id);
+    if (!rec) return res.status(404).json({ error: 'Not found or already reviewed' });
+
+    // If auto-execute is on, trigger execution immediately
+    if (process.env.AUTO_EXECUTE === 'true') {
+      const { ExecutionPipeline } = await import('./execution-pipeline.js');
+      const pipeline = new ExecutionPipeline();
+      pipeline.executeRecommendation(rec.id).catch((err) => {
+        logger.error('execution.auto.failed', { id: rec.id, error: String(err) });
+      });
+    }
+
+    res.json({ recommendation: rec });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('route.approve.error', { error: message });
+    res.status(500).json({ error: message });
+  }
+});
+
+app.post('/recommendations/:id/reject', async (req, res) => {
+  try {
+    const { rejectRecommendation } = await import('./recommendations-store.js');
+    const rec = await rejectRecommendation(req.params.id);
+    if (!rec) return res.status(404).json({ error: 'Not found or already reviewed' });
+    res.json({ recommendation: rec });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('route.reject.error', { error: message });
+    res.status(500).json({ error: message });
+  }
+});
+
+app.post('/recommendations/:id/execute', async (req, res) => {
+  try {
+    const { ExecutionPipeline } = await import('./execution-pipeline.js');
+    const pipeline = new ExecutionPipeline();
+    const result = await pipeline.executeRecommendation(req.params.id);
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('route.execute.error', { error: message });
+    res.status(500).json({ error: message });
+  }
+});
+
+// ── Execution config ────────────────────────────────────────
+app.get('/execution/config', async (_req, res) => {
+  try {
+    const { ExecutionPipeline } = await import('./execution-pipeline.js');
+    const pipeline = new ExecutionPipeline();
+    res.json(pipeline.currentConfig);
+  } catch {
+    res.json({
+      autoExecute: process.env.AUTO_EXECUTE === 'true',
+      maxOrdersPerCycle: Number(process.env.MAX_ORDERS_PER_CYCLE) || 3,
+      maxOrderValue: Number(process.env.MAX_ORDER_VALUE) || 5000,
+      tradingMode: process.env.TRADING_MODE || 'paper',
+    });
   }
 });

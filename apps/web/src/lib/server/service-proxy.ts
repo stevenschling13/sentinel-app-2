@@ -11,6 +11,52 @@ const PROXY_BASE_DELAY_MS = 250;
 
 const RETRYABLE_GATEWAY_CODES = new Set([502, 503, 504]);
 
+// ── Circuit Breaker ─────────────────────────────────────────
+
+interface CircuitState {
+  failures: number;
+  lastFailure: number;
+  isOpen: boolean;
+}
+
+const circuits = new Map<string, CircuitState>();
+const CIRCUIT_THRESHOLD = 3;
+const CIRCUIT_TIMEOUT_MS = 30_000;
+
+function getCircuit(service: string): CircuitState {
+  if (!circuits.has(service)) {
+    circuits.set(service, { failures: 0, lastFailure: 0, isOpen: false });
+  }
+  return circuits.get(service)!;
+}
+
+function recordSuccess(service: string) {
+  const circuit = getCircuit(service);
+  circuit.failures = 0;
+  circuit.isOpen = false;
+}
+
+function recordFailure(service: string) {
+  const circuit = getCircuit(service);
+  circuit.failures++;
+  circuit.lastFailure = Date.now();
+  if (circuit.failures >= CIRCUIT_THRESHOLD) {
+    circuit.isOpen = true;
+  }
+}
+
+function isCircuitOpen(service: string): boolean {
+  const circuit = getCircuit(service);
+  if (!circuit.isOpen) return false;
+  // Auto-reset after timeout (half-open)
+  if (Date.now() - circuit.lastFailure > CIRCUIT_TIMEOUT_MS) {
+    circuit.isOpen = false;
+    circuit.failures = 0;
+    return false;
+  }
+  return true;
+}
+
 function proxyBackoffDelay(attempt: number): number {
   const jitter = 0.8 + Math.random() * 0.4;
   return PROXY_BASE_DELAY_MS * Math.pow(2, attempt) * jitter;
@@ -90,6 +136,15 @@ export async function proxyRequest(
   const upstream = `${upstreamBase}/${upstreamPath}${url.search}`;
   const service = serviceName(upstreamBase);
 
+  // Circuit breaker: fail fast if service is known to be down
+  if (isCircuitOpen(service)) {
+    console.error(`[service-proxy] circuit open for ${service}, returning 503`);
+    return NextResponse.json(
+      { error: `Service unavailable: ${service} (circuit open)` },
+      { status: 503 },
+    );
+  }
+
   // SSE streaming endpoints are piped without buffering or retries
   if (isStreamingPath(pathSegments)) {
     return proxyStream(upstream, apiKey, service);
@@ -126,6 +181,7 @@ export async function proxyRequest(
       }
 
       const body = await res.text();
+      recordSuccess(service);
       return new NextResponse(body, {
         status: res.status,
         headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
@@ -135,11 +191,13 @@ export async function proxyRequest(
         `[service-proxy] ${service} request failed — ${upstream}`,
         err instanceof Error ? err.message : err,
       );
+      recordFailure(service);
       return NextResponse.json({ error: `Service unavailable: ${service}` }, { status: 502 });
     }
   }
 
   // All retries exhausted with gateway errors
+  recordFailure(service);
   console.error(
     `[service-proxy] ${service} returned ${lastStatus} after ${PROXY_MAX_RETRIES} retries — ${upstream}`,
   );
