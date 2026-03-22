@@ -1,8 +1,12 @@
 name: Bug Report
-description: Report a bug in the Sentinel Trading Platform
+description: Report something that isn't working
 title: "[Bug] "
 labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the details below.
   - type: textarea
     id: description
     attributes:
@@ -14,10 +18,10 @@ body:
     id: steps
     attributes:
       label: Steps to Reproduce
-      description: Steps to reproduce the behavior.
+      description: How can we reproduce this?
       placeholder: |
-        1. Go to '...'
-        2. Click on '...'
+        1. Go to ...
+        2. Click on ...
         3. See error
     validations:
       required: true
@@ -25,32 +29,26 @@ body:
     id: expected
     attributes:
       label: Expected Behavior
-      description: What you expected to happen.
+      description: What should happen?
     validations:
       required: true
   - type: textarea
     id: actual
     attributes:
       label: Actual Behavior
-      description: What actually happened.
+      description: What actually happens?
     validations:
       required: true
   - type: dropdown
     id: service
     attributes:
-      label: Affected Service
+      label: Service
+      description: Which service is affected?
       options:
-        - Web (Next.js dashboard)
-        - Engine (Python FastAPI)
-        - Agents (TypeScript orchestrator)
+        - Web (Next.js)
+        - Engine (Python)
+        - Agents (TypeScript)
         - Database (Supabase)
         - Multiple / Unknown
     validations:
       required: true
-  - type: textarea
-    id: context
-    attributes:
-      label: Additional Context
-      description: Any other context, screenshots, or logs.
-    validations:
-      required: false
