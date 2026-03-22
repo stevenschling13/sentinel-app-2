@@ -1,21 +1,22 @@
 changelog:
   categories:
-    - title: Features
+    - title: "🚀 Features"
       labels:
         - enhancement
         - feature
-    - title: Bug Fixes
+    - title: "🐛 Bug Fixes"
       labels:
         - bug
         - fix
-    - title: Infrastructure
+    - title: "🏗️ Infrastructure"
       labels:
         - ci
         - infra
-        - dependencies
-    - title: Documentation
+        - deps
+        - deployment
+    - title: "📖 Documentation"
       labels:
         - docs
-    - title: Other Changes
+    - title: "Other Changes"
       labels:
         - "*"
