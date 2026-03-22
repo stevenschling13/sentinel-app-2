@@ -3,6 +3,7 @@
  * Simplified v2: no GitHub ops, no order submission (manual execution only).
  */
 
+import { z } from 'zod';
 import { EngineClient } from './engine-client.js';
 import {
   createRecommendation,
@@ -12,6 +13,47 @@ import {
 } from './recommendations-store.js';
 import type { MarketSentiment, RiskAssessment } from './types.js';
 import { WATCHLIST_TICKERS } from './config.js';
+
+// ── Zod schemas for tool input validation ───────────────────
+
+const TickersSchema = z.object({
+  tickers: z.array(z.string().min(1).max(10)).optional().default([]),
+  timeframe: z.string().optional().default('1d'),
+});
+
+const StrategyScanSchema = z.object({
+  tickers: z.array(z.string()).optional().default([]),
+  strategies: z.array(z.string()).optional().default([]),
+});
+
+const StrategyInfoSchema = z.object({
+  family: z.string().optional(),
+});
+
+const PositionSizeSchema = z.object({
+  ticker: z.string().min(1).max(10),
+  price: z.number().positive(),
+  method: z.string().optional().default('fixed_fraction'),
+});
+
+const RiskCheckSchema = z.object({
+  ticker: z.string().min(1).max(10),
+  shares: z.number().int().positive(),
+  price: z.number().positive(),
+  side: z.enum(['buy', 'sell']),
+});
+
+const AnalyzeTickerSchema = z.object({
+  ticker: z.string().min(1).max(10),
+  depth: z.enum(['quick', 'standard', 'deep']).optional().default('standard'),
+});
+
+const CreateAlertSchema = z.object({
+  severity: z.enum(['info', 'warning', 'critical']),
+  title: z.string().min(1).max(200),
+  message: z.string().min(1).max(1000),
+  ticker: z.string().optional(),
+});
 
 export class ToolExecutor {
   private engine: EngineClient;
@@ -32,22 +74,21 @@ export class ToolExecutor {
 
   private async dispatch(toolName: string, input: Record<string, unknown>): Promise<unknown> {
     switch (toolName) {
-      case 'get_market_data': return this.getMarketData(input);
+      case 'get_market_data': return this.getMarketData(TickersSchema.parse(input));
       case 'get_market_sentiment': return this.getMarketSentiment();
-      case 'run_strategy_scan': return this.runStrategyScan(input);
-      case 'get_strategy_info': return this.getStrategyInfo(input);
+      case 'run_strategy_scan': return this.runStrategyScan(StrategyScanSchema.parse(input));
+      case 'get_strategy_info': return this.getStrategyInfo(StrategyInfoSchema.parse(input));
       case 'assess_portfolio_risk': return this.assessPortfolioRisk();
-      case 'calculate_position_size': return this.calculatePositionSize(input);
-      case 'check_risk_limits': return this.checkRiskLimits(input);
-      case 'analyze_ticker': return this.analyzeTicker(input);
-      case 'create_alert': return this.createAlert(input);
+      case 'calculate_position_size': return this.calculatePositionSize(PositionSizeSchema.parse(input));
+      case 'check_risk_limits': return this.checkRiskLimits(RiskCheckSchema.parse(input));
+      case 'analyze_ticker': return this.analyzeTicker(AnalyzeTickerSchema.parse(input));
+      case 'create_alert': return this.createAlert(CreateAlertSchema.parse(input));
       default: throw new Error(`Unknown tool: ${toolName}`);
     }
   }
 
-  private async getMarketData(input: Record<string, unknown>) {
-    const tickers = (input.tickers as string[]) ?? [];
-    const timeframe = (input.timeframe as string) ?? '1d';
+  private async getMarketData(input: z.infer<typeof TickersSchema>) {
+    const { tickers, timeframe } = input;
 
     try { await this.engine.ingestData(tickers, timeframe); } catch { /* best-effort */ }
 
@@ -76,9 +117,8 @@ export class ToolExecutor {
     };
   }
 
-  private async runStrategyScan(input: Record<string, unknown>) {
-    const tickers = (input.tickers as string[] | undefined) ?? [];
-    const strategies = (input.strategies as string[] | undefined) ?? [];
+  private async runStrategyScan(input: z.infer<typeof StrategyScanSchema>) {
+    const { tickers, strategies } = input;
     const scanTickers = tickers.length > 0 ? tickers : [...WATCHLIST_TICKERS];
 
     const result = await this.engine.scanStrategies({ tickers: scanTickers, days: 90, min_strength: 0.3 });
@@ -89,9 +129,9 @@ export class ToolExecutor {
     return { signals, total_signals: signals.length, tickers_scanned: result.tickers_scanned, strategies_run: result.strategies_run, errors: result.errors };
   }
 
-  private async getStrategyInfo(input: Record<string, unknown>) {
+  private async getStrategyInfo(input: z.infer<typeof StrategyInfoSchema>) {
     const strategies = await this.engine.getStrategies();
-    const family = input.family as string | undefined;
+    const { family } = input;
     if (family) return { family, strategies: strategies.strategies.filter((s) => s.family === family) };
     return strategies;
   }
@@ -116,35 +156,38 @@ export class ToolExecutor {
     };
   }
 
-  private async calculatePositionSize(input: Record<string, unknown>) {
+  private async calculatePositionSize(input: z.infer<typeof PositionSizeSchema>) {
+    const { ticker, price, method } = input;
     const acct = await this.engine.getAccount();
     return this.engine.calculatePositionSize({
-      ticker: input.ticker as string,
-      price: input.price as number,
+      ticker,
+      price,
       equity: acct.equity,
-      method: (input.method as string) ?? 'fixed_fraction',
+      method,
     });
   }
 
-  private async checkRiskLimits(input: Record<string, unknown>) {
+  private async checkRiskLimits(input: z.infer<typeof RiskCheckSchema>) {
+    const { ticker, shares, price, side } = input;
     const [acct, positions] = await Promise.all([this.engine.getAccount(), this.engine.getPositions()]);
     const positionsMap: Record<string, number> = {};
     for (const p of positions) positionsMap[p.instrument_id] = p.market_value ?? p.quantity * (p.avg_price ?? 0);
 
     const result = await this.engine.preTradeCheck({
-      ticker: input.ticker as string, shares: input.shares as number,
-      price: input.price as number, side: input.side as 'buy' | 'sell',
+      ticker, shares,
+      price, side,
       equity: acct.equity, cash: acct.cash,
       peak_equity: acct.initial_capital ?? acct.equity,
       daily_starting_equity: acct.initial_capital ?? acct.equity,
       positions: positionsMap, position_sectors: {},
     });
 
-    return { ticker: input.ticker, shares: input.shares, price: input.price, side: input.side, passed: result.allowed, reason: result.reason, adjusted_shares: result.adjusted_shares };
+    return { ticker, shares, price, side, passed: result.allowed, reason: result.reason, adjusted_shares: result.adjusted_shares };
   }
 
-  private async analyzeTicker(input: Record<string, unknown>) {
-    const ticker = (input.ticker as string).toUpperCase();
+  private async analyzeTicker(input: z.infer<typeof AnalyzeTickerSchema>) {
+    const ticker = input.ticker.toUpperCase();
+    const { depth } = input;
     const result = await this.engine.scanStrategies({ tickers: [ticker], days: 90, min_strength: 0.0 });
     const signals = result.signals;
     const longSignals = signals.filter((s) => s.direction === 'long');
@@ -153,7 +196,7 @@ export class ToolExecutor {
 
     return {
       ticker,
-      depth: input.depth ?? 'standard',
+      depth,
       signals,
       summary: {
         total_signals: signals.length, long_signals: longSignals.length, short_signals: shortSignals.length,
@@ -165,13 +208,9 @@ export class ToolExecutor {
     };
   }
 
-  private async createAlert(input: Record<string, unknown>) {
-    const alertData: AlertCreate = {
-      severity: input.severity as 'info' | 'warning' | 'critical',
-      title: input.title as string,
-      message: input.message as string,
-    };
-    const ticker = input.ticker as string | undefined;
+  private async createAlert(input: z.infer<typeof CreateAlertSchema>) {
+    const { severity, title, message, ticker } = input;
+    const alertData: AlertCreate = { severity, title, message };
     if (ticker) alertData.ticker = ticker;
     return dbCreateAlert(alertData);
   }

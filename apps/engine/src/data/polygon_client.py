@@ -128,17 +128,23 @@ class PolygonClient:
         retry_on_rate_limit: bool = True,
         **kwargs,
     ) -> httpx.Response:
-        """Execute an HTTP request with automatic 429 retry + backoff."""
+        """Execute an HTTP request with retry on transient errors.
+
+        Retries on 429 (rate-limit), 502, 503, 504 (server errors),
+        and connection / timeout exceptions with exponential backoff.
+        """
+        _retryable_statuses = {429, 502, 503, 504}
         last_exc: Exception | None = None
         for attempt in range(_MAX_RETRIES + 1):
             try:
                 response = await self._http.request(method, url, **kwargs)
-                if response.status_code == 429:
-                    if not retry_on_rate_limit:
+                if response.status_code in _retryable_statuses and attempt < _MAX_RETRIES:
+                    if response.status_code == 429 and not retry_on_rate_limit:
                         response.raise_for_status()
                     wait = _INITIAL_BACKOFF * (2**attempt)
                     logger.warning(
-                        "Polygon 429 rate-limited on %s (attempt %d/%d), retrying in %.1fs",
+                        "Polygon %d on %s (attempt %d/%d), retrying in %.1fs",
+                        response.status_code,
                         url,
                         attempt + 1,
                         _MAX_RETRIES + 1,
@@ -149,13 +155,14 @@ class PolygonClient:
                 response.raise_for_status()
                 return response
             except httpx.HTTPStatusError as exc:
-                if exc.response.status_code == 429:
-                    if not retry_on_rate_limit:
+                if exc.response.status_code in _retryable_statuses and attempt < _MAX_RETRIES:
+                    if exc.response.status_code == 429 and not retry_on_rate_limit:
                         raise
                     last_exc = exc
                     wait = _INITIAL_BACKOFF * (2**attempt)
                     logger.warning(
-                        "Polygon 429 on %s (attempt %d/%d), retrying in %.1fs",
+                        "Polygon %d on %s (attempt %d/%d), retrying in %.1fs",
+                        exc.response.status_code,
                         url,
                         attempt + 1,
                         _MAX_RETRIES + 1,
@@ -164,9 +171,24 @@ class PolygonClient:
                     await asyncio.sleep(wait)
                     continue
                 raise
+            except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout) as exc:
+                last_exc = exc
+                if retry_on_rate_limit and attempt < _MAX_RETRIES:
+                    wait = _INITIAL_BACKOFF * (2**attempt)
+                    logger.warning(
+                        "Polygon connection error on %s (error=%s, attempt %d/%d), retrying in %.1fs",
+                        url,
+                        exc,
+                        attempt + 1,
+                        _MAX_RETRIES + 1,
+                        wait,
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    raise
 
         raise last_exc or httpx.HTTPStatusError(
-            "Rate limited after retries",
+            "Retries exhausted",
             request=httpx.Request("GET", url),
             response=httpx.Response(429),
         )

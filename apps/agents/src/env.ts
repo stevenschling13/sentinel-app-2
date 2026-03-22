@@ -2,6 +2,7 @@
  * Environment contract for the agents service.
  */
 
+/** Names of environment variables that must be set for full agent functionality. */
 export const REQUIRED_AGENT_ENV_VARS = [
   'ANTHROPIC_API_KEY',
   'SUPABASE_URL',
@@ -10,6 +11,10 @@ export const REQUIRED_AGENT_ENV_VARS = [
   'ENGINE_API_KEY',
 ] as const;
 
+/**
+ * Returns the subset of {@link REQUIRED_AGENT_ENV_VARS} that are not set.
+ * @param env - Process environment to inspect (defaults to `process.env`).
+ */
 export function getMissingAgentEnvVars(
   env: NodeJS.ProcessEnv = process.env,
 ): Array<(typeof REQUIRED_AGENT_ENV_VARS)[number]> {

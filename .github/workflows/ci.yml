@@ -24,8 +24,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Test
-        run: pnpm --filter @sentinel/web test
+      - name: Test with coverage
+        run: pnpm --filter @sentinel/web test -- --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=lcov
       - name: Build
         run: pnpm turbo build --filter=@sentinel/web
 
@@ -44,8 +44,10 @@ jobs:
       - run: uv sync --extra dev
       - name: Lint
         run: uv run ruff check src/
-      - name: Test
-        run: uv run python -m pytest tests/ -v --tb=short
+      - name: Type check
+        run: uv run python -m mypy src/ --ignore-missing-imports || true
+      - name: Test with coverage
+        run: uv run python -m pytest tests/ -v --tb=short --cov=src --cov-report=xml --cov-fail-under=70
 
   agents:
     name: Agents (TypeScript)
@@ -64,5 +66,18 @@ jobs:
         run: pnpm turbo lint --filter=@sentinel/agents
       - name: Test
         run: pnpm --filter @sentinel/agents test
+      - name: Test with coverage
+        run: pnpm --filter @sentinel/agents test -- --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=lcov
       - name: Build
         run: pnpm turbo build --filter=@sentinel/agents
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [engine, agents]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.app }}
+        run: docker build -f apps/${{ matrix.app }}/Dockerfile -t sentinel-${{ matrix.app }}:ci .
