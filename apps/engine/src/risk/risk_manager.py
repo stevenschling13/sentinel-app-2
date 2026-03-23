@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from src.compliance.audit_logger import get_audit_logger
 from src.risk.position_sizer import RiskLimits
 
 logger = logging.getLogger(__name__)
@@ -82,6 +83,7 @@ class RiskManager:
         self.limits = limits or RiskLimits()
         self._alerts: list[RiskAlert] = []
         self._halted = False
+        self._audit_logger = get_audit_logger()
 
     @property
     def is_halted(self) -> bool:
@@ -119,6 +121,14 @@ class RiskManager:
             )
             self._halted = True
             self._alerts.append(alert)
+            # Log critical drawdown event
+            self._audit_logger.log_risk_check(
+                ticker=None,
+                check_type="drawdown_hard",
+                passed=False,
+                reason=alert.message,
+                details=alert.metadata,
+            )
             return alert
 
         if drawdown >= self.limits.max_drawdown_soft:
@@ -134,6 +144,14 @@ class RiskManager:
                 metadata={"drawdown": drawdown, "peak": state.peak_equity, "current": state.equity},
             )
             self._alerts.append(alert)
+            # Log soft drawdown warning
+            self._audit_logger.log_risk_check(
+                ticker=None,
+                check_type="drawdown_soft",
+                passed=False,
+                reason=alert.message,
+                details=alert.metadata,
+            )
             return alert
 
         return None
@@ -158,6 +176,14 @@ class RiskManager:
                 metadata={"daily_pnl": daily_pnl, "limit": self.limits.max_portfolio_risk_pct},
             )
             self._alerts.append(alert)
+            # Log daily loss limit event
+            self._audit_logger.log_risk_check(
+                ticker=None,
+                check_type="daily_loss",
+                passed=False,
+                reason=alert.message,
+                details=alert.metadata,
+            )
             return alert
 
         return None
@@ -181,17 +207,49 @@ class RiskManager:
         should be reduced, or must be rejected.
         """
         if self._halted:
-            return PreTradeCheck(
+            result = PreTradeCheck(
                 allowed=False,
                 action=RiskAction.HALT,
                 reason="Trading halted — circuit breaker active",
             )
+            # Log the risk check
+            self._audit_logger.log_risk_check(
+                ticker=ticker,
+                check_type="pre_trade",
+                passed=False,
+                reason=result.reason,
+                details={
+                    "shares": shares,
+                    "price": price,
+                    "side": side,
+                    "action": result.action.value,
+                },
+            )
+            return result
 
         if side == "buy":
-            return self._check_buy(ticker, shares, price, state, sector)
-        return PreTradeCheck(
-            allowed=True, action=RiskAction.ALLOW, reason="Sells are always allowed"
+            result = self._check_buy(ticker, shares, price, state, sector)
+        else:
+            result = PreTradeCheck(
+                allowed=True, action=RiskAction.ALLOW, reason="Sells are always allowed"
+            )
+
+        # Log all pre-trade checks to audit trail
+        self._audit_logger.log_risk_check(
+            ticker=ticker,
+            check_type="pre_trade",
+            passed=result.allowed,
+            reason=result.reason,
+            details={
+                "shares": shares,
+                "price": price,
+                "side": side,
+                "action": result.action.value,
+                "adjusted_shares": result.adjusted_shares,
+            },
         )
+
+        return result
 
     def _check_buy(
         self,
