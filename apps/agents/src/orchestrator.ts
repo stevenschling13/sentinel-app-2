@@ -1,15 +1,19 @@
 /**
- * Agent Orchestrator (v2) — coordinates 3 core trading agents.
+ * Agent Orchestrator (v2) — coordinates 6 specialized trading agents.
  *
  * Trading cycle (sequential):
  * 1. Market Sentinel → assess market conditions
- * 2. Strategy Analyst → generate signals
- * 3. Risk Monitor → check portfolio risk
+ * 2. News Analyst → check news & sentiment
+ * 3. Strategy Analyst → generate signals
+ * 4. Risk Monitor → check portfolio risk
+ * 5. Execution Planner → plan execution for approved trades
+ * 6. Portfolio Manager → portfolio optimization
  */
 
 import { Agent } from './agent.js';
 import { ToolExecutor } from './tool-executor.js';
 import { EngineClient } from './engine-client.js';
+import { CycleContext } from './cycle-context.js';
 import type { AgentConfig, AgentResult, AgentRole, OrchestratorState } from './types.js';
 import {
   DEFAULT_AGENT_PROMPTS,
@@ -17,6 +21,9 @@ import {
   MARKET_SENTINEL_COOLDOWN_MS,
   STRATEGY_ANALYST_COOLDOWN_MS,
   RISK_MONITOR_COOLDOWN_MS,
+  NEWS_ANALYST_COOLDOWN_MS,
+  EXECUTION_PLANNER_COOLDOWN_MS,
+  PORTFOLIO_MANAGER_COOLDOWN_MS,
 } from './config.js';
 import { logger } from './logger.js';
 import { eventBus } from './event-bus.js';
@@ -43,9 +50,37 @@ const DEFAULT_CONFIGS: AgentConfig[] = [
     enabled: true,
     cooldownMs: RISK_MONITOR_COOLDOWN_MS,
   },
+  {
+    role: 'news_analyst',
+    name: 'News Analyst',
+    description: 'Monitors financial news and extracts sentiment',
+    enabled: true,
+    cooldownMs: NEWS_ANALYST_COOLDOWN_MS,
+  },
+  {
+    role: 'execution_planner',
+    name: 'Execution Planner',
+    description: 'Plans optimal trade execution strategies',
+    enabled: true,
+    cooldownMs: EXECUTION_PLANNER_COOLDOWN_MS,
+  },
+  {
+    role: 'portfolio_manager',
+    name: 'Portfolio Manager',
+    description: 'Optimizes portfolio composition and manages exposure',
+    enabled: true,
+    cooldownMs: PORTFOLIO_MANAGER_COOLDOWN_MS,
+  },
 ];
 
-const CYCLE_SEQUENCE: AgentRole[] = ['market_sentinel', 'strategy_analyst', 'risk_monitor'];
+const CYCLE_SEQUENCE: AgentRole[] = [
+  'market_sentinel',      // 1. Assess market conditions
+  'news_analyst',         // 2. Check news & sentiment
+  'strategy_analyst',     // 3. Generate signals
+  'risk_monitor',         // 4. Check portfolio risk
+  'execution_planner',    // 5. Plan execution for approved trades
+  'portfolio_manager',    // 6. Portfolio optimization
+];
 
 export class Orchestrator {
   private agents: Map<AgentRole, Agent> = new Map();
@@ -109,6 +144,7 @@ export class Orchestrator {
 
     this.state.cycleCount++;
     const results: AgentResult[] = [];
+    const context = new CycleContext(this.state.cycleCount);
     logger.info('orchestrator.cycle.start', { cycleCount: this.state.cycleCount });
     eventBus
       .publish('cycle.started', {
@@ -118,12 +154,26 @@ export class Orchestrator {
       .catch(() => {});
 
     for (const role of CYCLE_SEQUENCE) {
-      const result = await this.runAgent(
-        role,
-        DEFAULT_AGENT_PROMPTS[role] ?? `Execute ${role} workflow.`,
-      );
+      const basePrompt = DEFAULT_AGENT_PROMPTS[role] ?? `Execute ${role} workflow.`;
+      const contextualPrompt = basePrompt + context.formatForPrompt(role);
+
+      const result = await this.runAgent(role, contextualPrompt);
       results.push(result);
+
+      context.addResult({
+        role,
+        success: result.success,
+        summary: typeof result.data === 'string' ? result.data : JSON.stringify(result.data),
+        durationMs: result.durationMs,
+        timestamp: result.timestamp,
+        highlights: {},
+      });
     }
+
+    // Publish context snapshot
+    eventBus
+      .publish('context.updated', context.toSnapshot())
+      .catch(() => {});
 
     const successCount = results.filter((r) => r.success).length;
     this.state.lastCycleAt = new Date().toISOString();

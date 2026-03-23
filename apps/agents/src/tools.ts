@@ -115,6 +115,29 @@ const AGENT_TOOLS: Record<AgentRole, string[]> = {
     'check_earnings_calendar',
     'create_alert',
   ],
+  news_analyst: [
+    'get_news_sentiment',
+    'get_market_data',
+    'get_market_sentiment',
+    'check_earnings_calendar',
+    'create_alert',
+  ],
+  execution_planner: [
+    'get_market_data',
+    'calculate_position_size',
+    'check_risk_limits',
+    'check_earnings_calendar',
+    'submit_order',
+    'create_alert',
+  ],
+  portfolio_manager: [
+    'assess_portfolio_risk',
+    'get_market_data',
+    'get_strategy_info',
+    'calculate_position_size',
+    'check_risk_limits',
+    'create_alert',
+  ],
 };
 
 type ToolSet = ReturnType<typeof createAllTools>;

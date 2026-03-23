@@ -6,6 +6,7 @@ import { Orchestrator } from './orchestrator.js';
 import { listAlerts } from './recommendations-store.js';
 import { listRecommendations } from './recommendations-store.js';
 import { logger } from './logger.js';
+import { metrics } from './metrics.js';
 
 export const app: Express = express();
 export const orchestrator = new Orchestrator();
@@ -202,4 +203,9 @@ app.get('/execution/config', async (_req, res) => {
       tradingMode: process.env.TRADING_MODE || 'paper',
     });
   }
+});
+
+// ── Metrics ─────────────────────────────────────────────────
+app.get('/metrics', (_req, res) => {
+  res.json(metrics.snapshot());
 });

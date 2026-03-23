@@ -1,16 +1,18 @@
 """Risk management API routes.
 
 Endpoints for portfolio risk assessment, position sizing,
-and risk configuration.
+compliance checks (PDT, wash sale), and risk configuration.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
+from src.risk.pdt_tracker import PDTTracker
 from src.risk.position_sizer import PositionSizer, RiskLimits
 from src.risk.risk_manager import PortfolioState, RiskManager
+from src.risk.wash_sale import WashSaleDetector
 
 router = APIRouter(prefix="/risk", tags=["risk"])
 
@@ -167,3 +169,58 @@ async def get_risk_limits() -> dict:
         "max_correlated_exposure": limits.max_correlated_exposure,
         "max_open_positions": limits.max_open_positions,
     }
+
+
+# ---------------------------------------------------------------------------
+# Compliance: PDT + Wash Sale
+# ---------------------------------------------------------------------------
+
+
+class PDTStatusRequest(BaseModel):
+    """Request body carrying recent trades for PDT evaluation."""
+
+    trades: list[dict] = Field(default_factory=list)
+    max_day_trades: int = 3
+
+
+class WashSaleCheckRequest(BaseModel):
+    """Request body carrying recent trades for wash-sale evaluation."""
+
+    trades: list[dict] = Field(default_factory=list)
+
+
+@router.post("/pdt-status")
+async def pdt_status(req: PDTStatusRequest) -> dict:
+    """Check current Pattern Day Trader status.
+
+    Accepts a list of recent trades and returns the day-trade count
+    within the rolling 5-business-day window plus whether further
+    day trades are allowed.
+    """
+    tracker = PDTTracker()
+    count = tracker.count_day_trades(req.trades)
+    return {
+        "day_trade_count": count,
+        "limit": req.max_day_trades,
+        "allowed": count < req.max_day_trades,
+        "warning": (
+            f"PDT limit reached ({count}/{req.max_day_trades})"
+            if count >= req.max_day_trades
+            else None
+        ),
+    }
+
+
+@router.post("/wash-sale-check")
+async def wash_sale_check(
+    req: WashSaleCheckRequest,
+    ticker: str = Query(..., description="Ticker to check"),
+    side: str = Query("buy", description="Proposed trade side"),
+) -> dict:
+    """Check whether buying a ticker would trigger a wash sale.
+
+    Scans the provided trade history for sells at a loss within the
+    last 30 days for the given ticker.
+    """
+    detector = WashSaleDetector()
+    return detector.check_wash_sale(req.trades, proposed_ticker=ticker, proposed_side=side)

@@ -3,8 +3,8 @@
  * Simplified to 3 core trading agents.
  */
 
-/** Identifier for the three core trading agents. */
-export type AgentRole = 'market_sentinel' | 'strategy_analyst' | 'risk_monitor';
+/** Identifier for the six specialized trading agents. */
+export type AgentRole = 'market_sentinel' | 'strategy_analyst' | 'risk_monitor' | 'news_analyst' | 'execution_planner' | 'portfolio_manager';
 
 /** Runtime status of an agent. */
 export type AgentStatus = 'idle' | 'running' | 'error';

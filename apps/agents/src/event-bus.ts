@@ -57,6 +57,20 @@ export interface OrderSubmittedEvent {
   quantity: number;
 }
 
+export interface ContextUpdatedEvent {
+  cycleNumber: number;
+  startedAt: string;
+  agentCount: number;
+  summaries: Array<{
+    role: string;
+    success: boolean;
+    summary: string;
+    durationMs: number;
+    timestamp: string;
+    highlights: Record<string, unknown>;
+  }>;
+}
+
 export type EventMap = {
   'cycle.started': CycleStartedEvent;
   'cycle.skipped': CycleSkippedEvent;
@@ -66,6 +80,7 @@ export type EventMap = {
   'signal.generated': SignalGeneratedEvent;
   'risk.alert': RiskAlertEvent;
   'order.submitted': OrderSubmittedEvent;
+  'context.updated': ContextUpdatedEvent;
 };
 
 // ── EventBus class ──────────────────────────────────────────

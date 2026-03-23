@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from src.api.routes.audit import router as audit_router
 from src.api.routes.backtest import router as backtest_router
 from src.api.routes.calendar import router as calendar_router
 from src.api.routes.data import router as data_router
@@ -133,6 +134,7 @@ app.add_middleware(
 app.add_middleware(RequestTracingMiddleware)
 
 app.include_router(health_router)
+app.include_router(audit_router, prefix="/api/v1")
 app.include_router(backtest_router, prefix="/api/v1")
 app.include_router(calendar_router, prefix="/api/v1")
 app.include_router(data_router, prefix="/api/v1")

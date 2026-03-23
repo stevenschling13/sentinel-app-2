@@ -156,3 +156,130 @@ async def list_backtestable_strategies() -> dict:
         "strategies": sorted(STRATEGY_CLASSES.keys()),
         "trends": ["up", "down", "volatile", "random"],
     }
+
+
+# ── Walk-Forward Analysis ─────────────────────────────────
+
+
+class WalkForwardRequest(BaseModel):
+    """Request to run walk-forward analysis."""
+
+    strategy_name: str
+    ticker: str = "SYNTHETIC"
+    bars: int = Field(default=504, ge=120, le=5000)
+    in_sample_pct: float = Field(default=0.7, ge=0.5, le=0.9)
+    num_windows: int = Field(default=4, ge=2, le=10)
+    trend: str = Field(default="random", pattern="^(up|down|volatile|random)$")
+    seed: int = 42
+
+
+@router.post("/walk-forward")
+async def run_walk_forward(req: WalkForwardRequest) -> dict:
+    """Run walk-forward analysis with rolling in-sample/out-of-sample windows."""
+    if req.strategy_name not in STRATEGY_CLASSES:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Unknown strategy: {req.strategy_name}. "
+                f"Available: {sorted(STRATEGY_CLASSES.keys())}"
+            ),
+        )
+
+    from src.backtest.walk_forward import WalkForwardAnalyzer
+
+    data = generate_synthetic_data(req.ticker, req.bars, req.trend, req.seed)
+    analyzer = WalkForwardAnalyzer()
+    result = analyzer.run(req.strategy_name, data, req.in_sample_pct, req.num_windows)
+    return {
+        "summary": result.summary(),
+        "windows": [
+            {
+                "window_index": w.window_index,
+                "in_sample_sharpe": round(w.in_sample_sharpe, 4),
+                "out_sample_sharpe": round(w.out_sample_sharpe, 4),
+                "in_sample_return": round(w.in_sample_return, 4),
+                "out_sample_return": round(w.out_sample_return, 4),
+            }
+            for w in result.windows
+        ],
+    }
+
+
+# ── Parameter Optimization ────────────────────────────────
+
+
+class OptimizeRequest(BaseModel):
+    """Request to run parameter grid search."""
+
+    strategy_name: str
+    ticker: str = "SYNTHETIC"
+    bars: int = Field(default=252, ge=50, le=5000)
+    param_grid: dict[str, list]
+    top_n: int = Field(default=10, ge=1, le=100)
+    trend: str = Field(default="random", pattern="^(up|down|volatile|random)$")
+    seed: int = 42
+
+
+@router.post("/optimize")
+async def run_optimize(req: OptimizeRequest) -> dict:
+    """Run grid-search parameter optimization."""
+    if req.strategy_name not in STRATEGY_CLASSES:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Unknown strategy: {req.strategy_name}. "
+                f"Available: {sorted(STRATEGY_CLASSES.keys())}"
+            ),
+        )
+
+    from src.backtest.optimizer import StrategyOptimizer
+
+    data = generate_synthetic_data(req.ticker, req.bars, req.trend, req.seed)
+    optimizer = StrategyOptimizer()
+    results = optimizer.grid_search(req.strategy_name, data, req.param_grid, req.top_n)
+    return {
+        "strategy_name": req.strategy_name,
+        "combinations_tested": len(results),
+        "results": [
+            {
+                "params": r.params,
+                "sharpe": round(r.sharpe, 4),
+                "total_return": round(r.total_return, 4),
+                "max_drawdown": round(r.max_drawdown, 4),
+                "num_trades": r.num_trades,
+            }
+            for r in results
+        ],
+    }
+
+
+# ── Monte Carlo Simulation ────────────────────────────────
+
+
+class MonteCarloRequest(BaseModel):
+    """Request to run Monte Carlo simulation."""
+
+    trade_returns: list[float]
+    num_simulations: int = Field(default=1000, ge=100, le=50000)
+    num_trades: int = Field(default=100, ge=10, le=10000)
+    seed: int | None = None
+
+
+@router.post("/monte-carlo")
+async def run_monte_carlo(req: MonteCarloRequest) -> dict:
+    """Run Monte Carlo bootstrap simulation on trade returns."""
+    if not req.trade_returns:
+        raise HTTPException(status_code=400, detail="trade_returns must not be empty")
+
+    from src.backtest.monte_carlo import MonteCarloSimulator
+
+    simulator = MonteCarloSimulator()
+    result = simulator.simulate(req.trade_returns, req.num_simulations, req.num_trades, req.seed)
+    return {
+        "num_simulations": result.num_simulations,
+        "median_return": round(result.median_return, 4),
+        "p5_return": round(result.p5_return, 4),
+        "p95_return": round(result.p95_return, 4),
+        "probability_of_profit": round(result.probability_of_profit, 4),
+        "max_drawdown_median": round(result.max_drawdown_median, 4),
+    }

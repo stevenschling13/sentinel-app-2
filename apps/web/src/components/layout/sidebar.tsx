@@ -10,6 +10,8 @@ import {
   Zap,
   Settings,
   CandlestickChart,
+  BookOpen,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
@@ -21,6 +23,8 @@ const NAV_ITEMS = [
   { href: '/backtest', label: 'Backtest', icon: TrendingUp },
   { href: '/portfolio', label: 'Portfolio', icon: Briefcase },
   { href: '/signals', label: 'Signals', icon: Zap },
+  { href: '/journal', label: 'Journal', icon: BookOpen },
+  { href: '/admin', label: 'Admin', icon: ShieldCheck },
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const;
 
