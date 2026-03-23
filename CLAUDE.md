@@ -8,7 +8,7 @@ Autonomous stock trading platform with AI-powered agents, a Python quantitative 
 apps/
 ├── web/       # Next.js 16 dashboard (React 19, Tailwind 4, Zustand)
 ├── engine/    # Python FastAPI (strategies, backtest, data, risk)
-└── agents/    # TypeScript agent orchestrator (3 Claude agents)
+└── agents/    # TypeScript agent orchestrator (6 Claude agents)
 packages/
 └── shared/    # Shared TypeScript types
 supabase/
@@ -21,7 +21,7 @@ supabase/
 
 - **Web**: Next.js 16, React 19, Tailwind 4, Zustand, Supabase SSR, Geist fonts
 - **Engine**: Python 3.12+, FastAPI, NumPy, Polygon.io, Alpaca
-- **Agents**: TypeScript, Anthropic SDK, 3-agent orchestrator (Market Sentinel, Strategy Analyst, Risk Monitor)
+- **Agents**: TypeScript, Anthropic SDK, 6-agent orchestrator (Market Sentinel, News Analyst, Strategy Analyst, Risk Monitor, Execution Planner, Portfolio Manager)
 - **Database**: Supabase (PostgreSQL), Realtime subscriptions
 - **Monorepo**: pnpm workspaces, Turborepo
 

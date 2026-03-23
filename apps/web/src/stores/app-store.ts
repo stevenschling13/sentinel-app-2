@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 
+// Maximum number of items to keep in realtime arrays to prevent memory leaks
+const MAX_REALTIME_ALERTS = 100;
+const MAX_REALTIME_SIGNALS = 100;
+
 export interface RealtimeAlertItem {
   id: string;
   severity: 'info' | 'warning' | 'critical';
@@ -57,10 +61,16 @@ export const useAppStore = create<AppState>((set) => ({
   setAgentsOnline: (online) => set({ agentsOnline: online }),
   addRealtimeAlert: (alert) =>
     set((s) => ({
-      realtimeAlerts: [alert, ...s.realtimeAlerts.filter((a) => a.id !== alert.id)],
+      realtimeAlerts: [alert, ...s.realtimeAlerts.filter((a) => a.id !== alert.id)].slice(
+        0,
+        MAX_REALTIME_ALERTS,
+      ),
     })),
   addRealtimeSignal: (signal) =>
     set((s) => ({
-      realtimeSignals: [signal, ...s.realtimeSignals.filter((r) => r.id !== signal.id)],
+      realtimeSignals: [signal, ...s.realtimeSignals.filter((r) => r.id !== signal.id)].slice(
+        0,
+        MAX_REALTIME_SIGNALS,
+      ),
     })),
 }));

@@ -13,6 +13,14 @@ const mockOrchestrator = {
       enabled: true,
     },
     {
+      role: 'news_analyst',
+      name: 'News Analyst',
+      description: 'Analyzes financial news',
+      status: 'idle',
+      lastRun: null,
+      enabled: true,
+    },
+    {
       role: 'strategy_analyst',
       name: 'Strategy Analyst',
       description: 'Runs trading strategies',
@@ -28,11 +36,41 @@ const mockOrchestrator = {
       lastRun: null,
       enabled: true,
     },
+    {
+      role: 'execution_planner',
+      name: 'Execution Planner',
+      description: 'Plans trade execution',
+      status: 'idle',
+      lastRun: null,
+      enabled: true,
+    },
+    {
+      role: 'portfolio_manager',
+      name: 'Portfolio Manager',
+      description: 'Manages portfolio allocation',
+      status: 'idle',
+      lastRun: null,
+      enabled: true,
+    },
   ]),
   runCycle: vi.fn(() => Promise.resolve([])),
   currentState: {
-    agents: { market_sentinel: 'idle', strategy_analyst: 'idle', risk_monitor: 'idle' },
-    lastRun: { market_sentinel: null, strategy_analyst: null, risk_monitor: null },
+    agents: {
+      market_sentinel: 'idle',
+      news_analyst: 'idle',
+      strategy_analyst: 'idle',
+      risk_monitor: 'idle',
+      execution_planner: 'idle',
+      portfolio_manager: 'idle',
+    },
+    lastRun: {
+      market_sentinel: null,
+      news_analyst: null,
+      strategy_analyst: null,
+      risk_monitor: null,
+      execution_planner: null,
+      portfolio_manager: null,
+    },
     cycleCount: 0,
     halted: false,
     lastCycleAt: null,
@@ -89,6 +127,14 @@ describe('Express routes', () => {
         enabled: true,
       },
       {
+        role: 'news_analyst',
+        name: 'News Analyst',
+        description: 'Analyzes financial news',
+        status: 'idle',
+        lastRun: null,
+        enabled: true,
+      },
+      {
         role: 'strategy_analyst',
         name: 'Strategy Analyst',
         description: 'Runs trading strategies',
@@ -104,11 +150,41 @@ describe('Express routes', () => {
         lastRun: null,
         enabled: true,
       },
+      {
+        role: 'execution_planner',
+        name: 'Execution Planner',
+        description: 'Plans trade execution',
+        status: 'idle',
+        lastRun: null,
+        enabled: true,
+      },
+      {
+        role: 'portfolio_manager',
+        name: 'Portfolio Manager',
+        description: 'Manages portfolio allocation',
+        status: 'idle',
+        lastRun: null,
+        enabled: true,
+      },
     ]);
     mockOrchestrator.runCycle.mockReturnValue(Promise.resolve([]));
     mockOrchestrator.currentState = {
-      agents: { market_sentinel: 'idle', strategy_analyst: 'idle', risk_monitor: 'idle' },
-      lastRun: { market_sentinel: null, strategy_analyst: null, risk_monitor: null },
+      agents: {
+        market_sentinel: 'idle',
+        news_analyst: 'idle',
+        strategy_analyst: 'idle',
+        risk_monitor: 'idle',
+        execution_planner: 'idle',
+        portfolio_manager: 'idle',
+      },
+      lastRun: {
+        market_sentinel: null,
+        news_analyst: null,
+        strategy_analyst: null,
+        risk_monitor: null,
+        execution_planner: null,
+        portfolio_manager: null,
+      },
       cycleCount: 0,
       halted: false,
       lastCycleAt: null,
@@ -140,12 +216,15 @@ describe('Express routes', () => {
 
     expect(res.body).toHaveProperty('agents');
     expect(Array.isArray(res.body.agents)).toBe(true);
-    expect(res.body.agents.length).toBe(3);
+    expect(res.body.agents.length).toBe(6);
 
     const names = res.body.agents.map((a: { name: string }) => a.name);
     expect(names).toContain('Market Sentinel');
+    expect(names).toContain('News Analyst');
     expect(names).toContain('Strategy Analyst');
     expect(names).toContain('Risk Monitor');
+    expect(names).toContain('Execution Planner');
+    expect(names).toContain('Portfolio Manager');
   });
 
   it('GET /alerts returns empty alerts array', async () => {

@@ -1,10 +1,16 @@
 /**
  * Type definitions for the Sentinel Agent Orchestrator (v2).
- * Simplified to 3 core trading agents.
+ * Six specialized trading agents working in sequence.
  */
 
 /** Identifier for the six specialized trading agents. */
-export type AgentRole = 'market_sentinel' | 'strategy_analyst' | 'risk_monitor' | 'news_analyst' | 'execution_planner' | 'portfolio_manager';
+export type AgentRole =
+  | 'market_sentinel'
+  | 'strategy_analyst'
+  | 'risk_monitor'
+  | 'news_analyst'
+  | 'execution_planner'
+  | 'portfolio_manager';
 
 /** Runtime status of an agent. */
 export type AgentStatus = 'idle' | 'running' | 'error';

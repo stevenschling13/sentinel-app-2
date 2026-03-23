@@ -42,18 +42,24 @@ describe('Orchestrator', () => {
   it('initializes with default agents', () => {
     const state = orchestrator.currentState;
     expect(state.agents.market_sentinel).toBe('idle');
+    expect(state.agents.news_analyst).toBe('idle');
     expect(state.agents.strategy_analyst).toBe('idle');
     expect(state.agents.risk_monitor).toBe('idle');
+    expect(state.agents.execution_planner).toBe('idle');
+    expect(state.agents.portfolio_manager).toBe('idle');
     expect(state.cycleCount).toBe(0);
     expect(state.halted).toBe(false);
   });
 
   it('runs a full cycle sequentially', async () => {
     const results = await orchestrator.runCycle();
-    expect(results).toHaveLength(3);
+    expect(results).toHaveLength(6);
     expect(results[0].role).toBe('market_sentinel');
-    expect(results[1].role).toBe('strategy_analyst');
-    expect(results[2].role).toBe('risk_monitor');
+    expect(results[1].role).toBe('news_analyst');
+    expect(results[2].role).toBe('strategy_analyst');
+    expect(results[3].role).toBe('risk_monitor');
+    expect(results[4].role).toBe('execution_planner');
+    expect(results[5].role).toBe('portfolio_manager');
     expect(orchestrator.currentState.cycleCount).toBe(1);
   });
 
@@ -73,7 +79,7 @@ describe('Orchestrator', () => {
 
   it('returns agent info', () => {
     const info = orchestrator.getAgentInfo();
-    expect(info).toHaveLength(3);
+    expect(info).toHaveLength(6);
     expect(info[0].role).toBe('market_sentinel');
     expect(info[0].enabled).toBe(true);
   });

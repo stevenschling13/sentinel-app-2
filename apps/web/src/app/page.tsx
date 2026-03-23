@@ -76,8 +76,9 @@ export default function DashboardPage() {
     return [...fromRt, ...alerts];
   }, [alerts, rtAlerts]);
 
-  // Merge REST signals with realtime signals (dedup by id)
+  // Merge REST signals with realtime signals (dedup by composite key: ticker-timestamp)
   const mergedSignals = useMemo(() => {
+    // REST signals use 'ts' field, realtime signals use 'created_at' before mapping
     const restKeys = new Set(recentSignals.map((s) => `${s.ticker}-${s.ts}`));
     const fromRt: SignalItem[] = rtSignals
       .filter((s) => !restKeys.has(`${s.ticker}-${s.created_at}`))
