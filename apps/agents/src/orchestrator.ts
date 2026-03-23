@@ -74,12 +74,12 @@ const DEFAULT_CONFIGS: AgentConfig[] = [
 ];
 
 const CYCLE_SEQUENCE: AgentRole[] = [
-  'market_sentinel',      // 1. Assess market conditions
-  'news_analyst',         // 2. Check news & sentiment
-  'strategy_analyst',     // 3. Generate signals
-  'risk_monitor',         // 4. Check portfolio risk
-  'execution_planner',    // 5. Plan execution for approved trades
-  'portfolio_manager',    // 6. Portfolio optimization
+  'market_sentinel', // 1. Assess market conditions
+  'news_analyst', // 2. Check news & sentiment
+  'strategy_analyst', // 3. Generate signals
+  'risk_monitor', // 4. Check portfolio risk
+  'execution_planner', // 5. Plan execution for approved trades
+  'portfolio_manager', // 6. Portfolio optimization
 ];
 
 export class Orchestrator {
@@ -171,9 +171,7 @@ export class Orchestrator {
     }
 
     // Publish context snapshot
-    eventBus
-      .publish('context.updated', context.toSnapshot())
-      .catch(() => {});
+    eventBus.publish('context.updated', context.toSnapshot()).catch(() => {});
 
     const successCount = results.filter((r) => r.success).length;
     this.state.lastCycleAt = new Date().toISOString();
@@ -203,6 +201,25 @@ export class Orchestrator {
         data: null,
         error: `Agent '${role}' not found`,
       };
+    }
+
+    // Enforce cooldown period
+    const lastRun = this.state.lastRun[role];
+    const cooldownMs = agent.config.cooldownMs ?? 0;
+    if (lastRun && cooldownMs > 0) {
+      const elapsed = Date.now() - new Date(lastRun).getTime();
+      if (elapsed < cooldownMs) {
+        const remaining = cooldownMs - elapsed;
+        logger.info('agent.cooldown', { role, remaining, cooldownMs });
+        return {
+          role,
+          success: false,
+          timestamp: new Date().toISOString(),
+          durationMs: 0,
+          data: null,
+          error: `Agent '${role}' is in cooldown. Remaining: ${Math.ceil(remaining / 1000)}s`,
+        };
+      }
     }
 
     logger.info('agent.start', { role });
