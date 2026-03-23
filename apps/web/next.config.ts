@@ -3,10 +3,10 @@ import type { NextConfig } from 'next';
 const CSP = [
   "default-src 'self'",
   "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data:",
   "connect-src 'self' wss: https://*.supabase.co",
-  "font-src 'self'",
+  "font-src 'self' https://fonts.gstatic.com",
   "frame-src 'none'",
   "object-src 'none'",
   "base-uri 'self'",
