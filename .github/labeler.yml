@@ -1,0 +1,34 @@
+# Configuration for actions/labeler — auto-labels PRs by changed files.
+web:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/web/**'
+
+engine:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/engine/**'
+
+agents:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/agents/**'
+
+shared:
+  - changed-files:
+      - any-glob-to-any-file: 'packages/shared/**'
+
+infra:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'docker-compose.yml'
+          - 'turbo.json'
+          - 'Dockerfile'
+          - 'apps/*/Dockerfile'
+
+deps:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'pnpm-lock.yaml'
+          - 'package.json'
+          - 'apps/*/package.json'
+          - 'apps/engine/pyproject.toml'
+          - 'apps/engine/uv.lock'

@@ -4,6 +4,8 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    assignees:
+      - stevenschling13
     groups:
       minor-and-patch:
         update-types:
@@ -14,8 +16,22 @@ updates:
     directory: "/apps/engine"
     schedule:
       interval: weekly
+    assignees:
+      - stevenschling13
     groups:
       minor-and-patch:
         update-types:
           - minor
           - patch
+
+  # Keep GitHub Actions up to date (checkout, setup-node, setup-python, etc.)
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    assignees:
+      - stevenschling13
+    groups:
+      actions:
+        patterns:
+          - "*"
