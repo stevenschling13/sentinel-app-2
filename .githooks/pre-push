@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Pre-push hook for Sentinel App 2.0 monorepo
+# All checks are warnings only — push is never blocked.
+
+YELLOW='\033[1;33m'
+GREEN='\033[1;32m'
+RESET='\033[0m'
+
+warnings=0
+
+# ---------------------------------------------------------------------------
+# 1. Behind-origin check
+# ---------------------------------------------------------------------------
+current_branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+if [ -n "$current_branch" ]; then
+    git fetch origin --quiet 2>/dev/null
+    if git rev-parse --verify "origin/main" >/dev/null 2>&1; then
+        behind=$(git rev-list --count HEAD..origin/main 2>/dev/null)
+        if [ "$behind" -gt 0 ] 2>/dev/null; then
+            echo -e "${YELLOW}⚠  WARNING: Local branch '$current_branch' is $behind commit(s) behind origin/main.${RESET}"
+            echo -e "${YELLOW}   Consider running: git pull --rebase origin main${RESET}"
+            warnings=$((warnings + 1))
+        fi
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 2. Unstaged changes check
+# ---------------------------------------------------------------------------
+unstaged=$(git diff --name-only 2>/dev/null)
+if [ -n "$unstaged" ]; then
+    echo -e "${YELLOW}⚠  WARNING: You have modified tracked files not staged for commit:${RESET}"
+    while IFS= read -r file; do
+        echo -e "${YELLOW}     - $file${RESET}"
+    done <<< "$unstaged"
+    warnings=$((warnings + 1))
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Untracked test files check
+# ---------------------------------------------------------------------------
+untracked_tests=$(git ls-files --others --exclude-standard \
+    '*.test.ts' '*.test.tsx' 'test_*.py' 2>/dev/null)
+if [ -n "$untracked_tests" ]; then
+    echo -e "${YELLOW}⚠  WARNING: Untracked test files found — consider committing them:${RESET}"
+    while IFS= read -r file; do
+        echo -e "${YELLOW}     - $file${RESET}"
+    done <<< "$untracked_tests"
+    warnings=$((warnings + 1))
+fi
+
+# ---------------------------------------------------------------------------
+# 4. Summary
+# ---------------------------------------------------------------------------
+echo ""
+if [ "$warnings" -gt 0 ]; then
+    echo -e "${YELLOW}Pre-push: $warnings warning(s) found. Push will proceed anyway.${RESET}"
+else
+    echo -e "${GREEN}Pre-push: All checks passed. Pushing…${RESET}"
+fi
+
+exit 0

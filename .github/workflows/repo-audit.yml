@@ -1,0 +1,276 @@
+name: Repository Health Audit
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    name: Run Repo Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Run repository audit
+        id: audit
+        continue-on-error: true
+        run: |
+          chmod +x scripts/repo-audit.sh
+          bash scripts/repo-audit.sh --json > audit-results.json 2>&1
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Generate step summary
+        run: |
+          echo "## 🔍 Repository Health Audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          DRIFT=$(python3 -c "import json; d=json.load(open('audit-results.json')); print(str(d['summary']['drift_detected']).lower())")
+          TOTAL=$(python3 -c "import json; d=json.load(open('audit-results.json')); print(d['summary']['total_checks'])")
+          PASSED=$(python3 -c "import json; d=json.load(open('audit-results.json')); print(d['summary']['passed'])")
+          FAILED=$(python3 -c "import json; d=json.load(open('audit-results.json')); print(d['summary']['failed'])")
+          WARNINGS=$(python3 -c "import json; d=json.load(open('audit-results.json')); print(d['summary']['warnings'])")
+
+          if [ "$DRIFT" = "true" ]; then
+            echo "> [!CAUTION]" >> "$GITHUB_STEP_SUMMARY"
+            echo "> Drift detected — repository is out of sync." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "> [!TIP]" >> "$GITHUB_STEP_SUMMARY"
+            echo "> All clear — repository is healthy." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Total checks | $TOTAL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ✅ Passed | $PASSED |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ❌ Failed | $FAILED |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ⚠️ Warnings | $WARNINGS |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # Sync check
+          echo "### 🕐 Sync Check" >> "$GITHUB_STEP_SUMMARY"
+          python3 -c "
+          import json
+          d = json.load(open('audit-results.json'))
+          s = d.get('sync', {})
+          if 'status' in s:
+              print(f'> {s[\"message\"]}')
+          else:
+              ahead, behind = s.get('ahead', 0), s.get('behind', 0)
+              if s.get('in_sync'):
+                  print('✅ In sync with origin/main')
+              else:
+                  if ahead: print(f'❌ {ahead} commit(s) ahead of origin/main')
+                  if behind: print(f'❌ {behind} commit(s) behind origin/main')
+          " >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # Working tree
+          echo "### 📂 Working Tree" >> "$GITHUB_STEP_SUMMARY"
+          python3 -c "
+          import json
+          d = json.load(open('audit-results.json'))
+          w = d.get('working_tree', {})
+          if w.get('clean') and w.get('stashes', 0) == 0:
+              print('✅ Working tree is clean')
+          else:
+              if w.get('untracked', 0): print(f'⚠️ {w[\"untracked\"]} untracked file(s)')
+              if w.get('modified', 0): print(f'⚠️ {w[\"modified\"]} modified file(s)')
+              if w.get('staged', 0): print(f'⚠️ {w[\"staged\"]} staged file(s)')
+              if w.get('stashes', 0): print(f'ℹ️ {w[\"stashes\"]} stash(es)')
+          " >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # Branch hygiene
+          echo "### 🌿 Branch Hygiene" >> "$GITHUB_STEP_SUMMARY"
+          python3 -c "
+          import json
+          d = json.load(open('audit-results.json'))
+          b = d.get('branch_hygiene', {})
+          stale = b.get('stale', 0)
+          total = b.get('total_remote', 0)
+          active = b.get('active', 0)
+          if stale == 0:
+              print(f'✅ No stale branches ({total} remote, {active} active)')
+          else:
+              print(f'❌ {stale} stale branch(es) older than 14 days')
+              for br in b.get('stale_branches', []):
+                  print(f'  - {br}')
+          " >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # CI workflow drift
+          echo "### ⚙️ CI Workflow Drift" >> "$GITHUB_STEP_SUMMARY"
+          python3 -c "
+          import json
+          d = json.load(open('audit-results.json'))
+          ci = d.get('ci_workflows', {})
+          if not ci.get('drift'):
+              print('✅ All CI workflows match origin/main')
+          else:
+              for f in ci.get('drifted', []):
+                  print(f'❌ {f} — differs from origin/main')
+              for f in ci.get('clean', []):
+                  print(f'✅ {f} — matches origin/main')
+          " >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # Dependency drift
+          echo "### 🔒 Dependency Drift" >> "$GITHUB_STEP_SUMMARY"
+          python3 -c "
+          import json
+          d = json.load(open('audit-results.json'))
+          dep = d.get('dependency_drift', {})
+          for lf in dep.get('lockfiles', []):
+              f = lf['file']
+              s = lf['status']
+              icons = {'clean': '✅', 'drifted': '❌', 'new': '⚠️', 'missing': 'ℹ️'}
+              print(f'{icons.get(s, \"?\")} {f} — {s}')
+          " >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # Open PRs
+          echo "### 🔀 Open Pull Requests" >> "$GITHUB_STEP_SUMMARY"
+          python3 -c "
+          import json
+          d = json.load(open('audit-results.json'))
+          prs = d.get('open_prs', {})
+          if 'status' in prs:
+              print(f'⚠️ {prs[\"status\"]}')
+          elif prs.get('count', 0) == 0:
+              print('✅ No open pull requests')
+          else:
+              print(f'ℹ️ {prs[\"count\"]} open pull request(s)')
+              print()
+              print('| PR | Title | Branch | Author |')
+              print('|----|-------|--------|--------|')
+              for pr in prs.get('prs', []):
+                  num = pr.get('number', '?')
+                  title = pr.get('title', 'untitled')[:60]
+                  branch = pr.get('headRefName', '?')
+                  author = pr.get('author', {}).get('login', '?')
+                  print(f'| #{num} | {title} | {branch} | @{author} |')
+          " >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create issue on drift
+        if: steps.audit.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TODAY=$(date -u '+%Y-%m-%d')
+          TITLE="🔍 Repository Drift Detected — ${TODAY}"
+
+          # Check if a similar open issue already exists
+          EXISTING=$(gh issue list --state open --label maintenance --search "Repository Drift Detected" --json number --jq 'length')
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "An open drift issue already exists — skipping creation."
+            exit 0
+          fi
+
+          BODY=$(cat <<'ISSUE_BODY_DELIM'
+          ## 🔍 Repository Health Audit — Drift Detected
+
+          The weekly repository audit detected drift. Please review and resolve.
+
+          ISSUE_BODY_DELIM
+          )
+
+          # Append audit details
+          BODY+=$'\n'
+          BODY+="**Run date:** ${TODAY}"$'\n'
+          BODY+=$'\n'
+
+          BODY+=$(python3 -c "
+          import json
+          d = json.load(open('audit-results.json'))
+          s = d['summary']
+          lines = []
+          lines.append('### Summary')
+          lines.append('')
+          lines.append('| Metric | Count |')
+          lines.append('|--------|-------|')
+          lines.append(f'| Total checks | {s[\"total_checks\"]} |')
+          lines.append(f'| ✅ Passed | {s[\"passed\"]} |')
+          lines.append(f'| ❌ Failed | {s[\"failed\"]} |')
+          lines.append(f'| ⚠️ Warnings | {s[\"warnings\"]} |')
+          lines.append('')
+
+          sync = d.get('sync', {})
+          lines.append('### 🕐 Sync Check')
+          if 'status' in sync:
+              lines.append(f'> {sync[\"message\"]}')
+          else:
+              a, b = sync.get('ahead', 0), sync.get('behind', 0)
+              if sync.get('in_sync'):
+                  lines.append('✅ In sync with origin/main')
+              else:
+                  if a: lines.append(f'❌ {a} commit(s) ahead')
+                  if b: lines.append(f'❌ {b} commit(s) behind')
+          lines.append('')
+
+          bh = d.get('branch_hygiene', {})
+          lines.append('### 🌿 Branch Hygiene')
+          stale = bh.get('stale', 0)
+          if stale == 0:
+              lines.append('✅ No stale branches')
+          else:
+              lines.append(f'❌ {stale} stale branch(es) older than 14 days')
+              for br in bh.get('stale_branches', []):
+                  lines.append(f'  - {br}')
+          lines.append('')
+
+          ci = d.get('ci_workflows', {})
+          lines.append('### ⚙️ CI Workflow Drift')
+          if not ci.get('drift'):
+              lines.append('✅ All workflows match origin/main')
+          else:
+              for f in ci.get('drifted', []):
+                  lines.append(f'❌ {f} — differs from origin/main')
+          lines.append('')
+
+          dep = d.get('dependency_drift', {})
+          lines.append('### 🔒 Dependency Drift')
+          for lf in dep.get('lockfiles', []):
+              icons = {'clean': '✅', 'drifted': '❌', 'new': '⚠️', 'missing': 'ℹ️'}
+              lines.append(f'{icons.get(lf[\"status\"], \"?\")} {lf[\"file\"]} — {lf[\"status\"]}')
+          lines.append('')
+
+          print('\n'.join(lines))
+          ")
+
+          BODY+=$'\n\n---\n_Auto-generated by the [repo-audit workflow](../actions/workflows/repo-audit.yml)._'
+
+          gh issue create \
+            --title "$TITLE" \
+            --body "$BODY" \
+            --label "maintenance"
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-results
+          path: audit-results.json
+          retention-days: 30
