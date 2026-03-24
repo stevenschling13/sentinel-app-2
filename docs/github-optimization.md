@@ -88,8 +88,8 @@ to all entries so Dependabot PRs appear in your PR dashboard.
 
 ### 2.6 Claude Agent Runs Frequently Cancelled (57% Waste)
 
-**Problem:** Of 7 Claude agent runs in the history, 4 were cancelled after
-running for ~1 hour each. This is typical when:
+**Problem:** At the time of this audit, 4 of 7 Claude agent runs were cancelled
+after running for roughly an hour each. This is typical when:
 - Multiple issues are assigned to an agent concurrently.
 - An issue is reassigned or closed while the agent is working.
 - The agent hits its timeout.
