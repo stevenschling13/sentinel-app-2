@@ -10,9 +10,47 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Detect which apps changed so we can skip unrelated jobs on PRs.
+# On pushes to main every job still runs (paths-filter defaults to true).
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      engine: ${{ steps.filter.outputs.engine }}
+      agents: ${{ steps.filter.outputs.agents }}
+      shared: ${{ steps.filter.outputs.shared }}
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+              - 'packages/shared/**'
+              - 'pnpm-lock.yaml'
+            engine:
+              - 'apps/engine/**'
+            agents:
+              - 'apps/agents/**'
+              - 'packages/shared/**'
+              - 'pnpm-lock.yaml'
+            shared:
+              - 'packages/shared/**'
+            docker:
+              - 'apps/engine/Dockerfile'
+              - 'apps/agents/Dockerfile'
+              - 'docker-compose.yml'
+
   web:
     name: Web (Next.js)
+    needs: changes
+    if: ${{ needs.changes.outputs.web == 'true' || github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +69,8 @@ jobs:
 
   engine:
     name: Engine (Python)
+    needs: changes
+    if: ${{ needs.changes.outputs.engine == 'true' || github.event_name == 'push' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -38,12 +78,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - run: uv sync --extra dev
       - name: Lint
-        run: uv run ruff check src/
+        run: uv run ruff check src/ tests/
       - name: Type check
         run: uv run python -m mypy src/ --ignore-missing-imports || true
       - name: Test with coverage
@@ -51,6 +93,8 @@ jobs:
 
   agents:
     name: Agents (TypeScript)
+    needs: changes
+    if: ${{ needs.changes.outputs.agents == 'true' || github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -64,8 +108,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Lint & Type Check
         run: pnpm turbo lint --filter=@sentinel/agents
-      - name: Test
-        run: pnpm --filter @sentinel/agents test
       - name: Test with coverage
         run: pnpm --filter @sentinel/agents test -- --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=lcov
       - name: Build
@@ -73,6 +115,8 @@ jobs:
 
   docker:
     name: Docker Build
+    needs: changes
+    if: ${{ needs.changes.outputs.docker == 'true' || needs.changes.outputs.engine == 'true' || needs.changes.outputs.agents == 'true' || github.event_name == 'push' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:

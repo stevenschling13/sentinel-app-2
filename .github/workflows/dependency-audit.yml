@@ -1,10 +1,19 @@
 name: Dependency Audit
 
 on:
+  # Run weekly on Monday mornings instead of on every push/PR.
+  # This avoids redundant audit runs — vulnerabilities rarely change between commits.
+  schedule:
+    - cron: '0 8 * * 1'
+  # Still run on pushes to main so new deps are checked after merge.
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+    paths:
+      - 'pnpm-lock.yaml'
+      - 'apps/engine/pyproject.toml'
+      - 'apps/engine/uv.lock'
+  # Allow manual trigger for ad-hoc audits.
+  workflow_dispatch:
 
 jobs:
   audit-npm:
@@ -32,6 +41,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
