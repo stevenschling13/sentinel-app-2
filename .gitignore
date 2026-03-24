@@ -44,3 +44,7 @@ supabase/.temp/
 
 .vercel
 apps/engine/.coverage
+
+# AI conversation artifacts
+Copilot/
+claude-md-management/
