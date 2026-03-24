@@ -18,7 +18,7 @@
     "@sentinel/shared": "workspace:*",
     "@supabase/supabase-js": "^2",
     "@upstash/redis": "^1.37.0",
-    "ai": "^6.0.134",
+    "ai": "^6.0.137",
     "cors": "^2.8.5",
     "dotenv": "^17",
     "express": "^4",
@@ -32,10 +32,10 @@
     "@types/node": "^25",
     "@types/node-cron": "^3",
     "@types/supertest": "^7",
-    "@vitest/coverage-v8": "^4.1.0",
+    "@vitest/coverage-v8": "^4.1.1",
     "supertest": "^7",
     "tsx": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.1"
   }
 }
