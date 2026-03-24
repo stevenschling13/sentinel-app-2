@@ -4,8 +4,9 @@ import asyncio
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -44,9 +45,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
             # Check limit
             if len(self.request_counts[client_ip]) >= self.requests_per_minute:
-                raise HTTPException(
+                return JSONResponse(
                     status_code=429,
-                    detail=f"Rate limit exceeded: {self.requests_per_minute}/min",
+                    content={"detail": f"Rate limit exceeded: {self.requests_per_minute}/min"},
                 )
 
             self.request_counts[client_ip].append(now)

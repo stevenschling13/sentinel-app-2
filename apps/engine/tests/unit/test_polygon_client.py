@@ -110,9 +110,11 @@ class TestInteractiveRequests:
             )
         )
 
-        with patch("src.data.polygon_client.asyncio.sleep", new=AsyncMock()) as sleep_mock:
-            with pytest.raises(httpx.HTTPStatusError):
-                await client.get_latest_price("NORETRY", interactive=True)
+        with (
+            patch("src.data.polygon_client.asyncio.sleep", new=AsyncMock()) as sleep_mock,
+            pytest.raises(httpx.HTTPStatusError),
+        ):
+            await client.get_latest_price("NORETRY", interactive=True)
 
         sleep_mock.assert_not_awaited()
         assert client._http.request.await_count == 1

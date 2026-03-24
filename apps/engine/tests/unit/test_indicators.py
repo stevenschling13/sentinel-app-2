@@ -248,7 +248,7 @@ class TestATR:
 class TestStochastic:
     def test_range_0_100(self):
         _, high, low, close, _ = make_ohlcv(50)
-        k, d = stochastic(high, low, close)
+        k, _d = stochastic(high, low, close)
         valid_k = k[~np.isnan(k)]
         assert all(0 <= v <= 100 for v in valid_k)
 

@@ -6,7 +6,7 @@ per IRS wash sale rules (IRC §1091).
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 class WashSaleDetector:
@@ -33,7 +33,7 @@ class WashSaleDetector:
         if proposed_side != "buy":
             return {"wash_sale": False, "triggering_trade": None, "days_since_loss": None}
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         cutoff = now - timedelta(days=30)
 
         # Find sells at a loss for the same ticker within 30 days

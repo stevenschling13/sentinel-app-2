@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 @dataclass
@@ -39,7 +38,7 @@ class TWAPExecutor:
             raise ValueError("num_slices must be positive")
 
         base_ts = (
-            datetime.fromisoformat(start_time) if start_time else datetime.now(tz=timezone.utc)
+            datetime.fromisoformat(start_time) if start_time else datetime.now(tz=UTC)
         )
 
         base_shares = total_shares // num_slices

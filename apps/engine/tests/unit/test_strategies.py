@@ -357,14 +357,14 @@ class TestRelativeValue:
 class TestComputeSpread:
     def test_identical_series_zero_spread(self):
         a = np.array([100.0, 101, 102, 103, 104])
-        spread, beta, intercept = compute_spread(a, a)
+        spread, beta, _intercept = compute_spread(a, a)
         assert beta == pytest.approx(1.0, abs=0.01)
         np.testing.assert_array_almost_equal(spread, np.zeros(5), decimal=10)
 
     def test_proportional_series(self):
         a = np.array([100.0, 110, 120, 130, 140])
         b = np.array([50.0, 55, 60, 65, 70])
-        spread, beta, _ = compute_spread(a, b)
+        _spread, beta, _ = compute_spread(a, b)
         assert beta == pytest.approx(1.0, abs=0.01)
 
 
@@ -488,7 +488,7 @@ class TestRegistry:
     def test_list_strategies(self):
         result = list_strategies()
         assert len(result) >= 11
-        for name, info in result.items():
+        for _name, info in result.items():
             assert "name" in info
             assert "family" in info
             assert "description" in info

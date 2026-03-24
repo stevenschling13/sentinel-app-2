@@ -7,7 +7,7 @@ same ticker on the same calendar date.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 class PDTTracker:
@@ -21,7 +21,7 @@ class PDTTracker:
         - ``side``: ``"buy"`` | ``"sell"``
         - ``executed_at``: ISO-8601 datetime string
         """
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(days=window_days)
+        cutoff = datetime.now(tz=UTC) - timedelta(days=window_days)
 
         # Group trades by (ticker, date)
         daily: dict[tuple[str, str], dict[str, int]] = {}

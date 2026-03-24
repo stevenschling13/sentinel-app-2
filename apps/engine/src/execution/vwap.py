@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 # Default U-shaped intraday volume profile (high at open/close, low midday).
 # Represents relative volume for 5 equal periods across a trading session.
@@ -52,7 +52,7 @@ class VWAPExecutor:
         weights = [w / total_weight for w in profile]
 
         base_ts = (
-            datetime.fromisoformat(start_time) if start_time else datetime.now(tz=timezone.utc)
+            datetime.fromisoformat(start_time) if start_time else datetime.now(tz=UTC)
         )
 
         # Distribute shares proportionally, accumulating rounding error.
