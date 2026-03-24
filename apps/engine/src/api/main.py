@@ -1,4 +1,5 @@
 import logging
+import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -124,9 +125,12 @@ _settings = Settings()
 app.add_middleware(ApiKeyMiddleware, api_key=_settings.engine_api_key)
 
 _cors_origins = [o.strip() for o in _settings.cors_origins.split(",") if o.strip()]
+# Also allow any Vercel preview deployment (*.vercel.app)
+_VERCEL_PREVIEW_RE = re.compile(r"^https://[a-z0-9-]+\.vercel\.app$")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    allow_origin_regex=_VERCEL_PREVIEW_RE.pattern,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

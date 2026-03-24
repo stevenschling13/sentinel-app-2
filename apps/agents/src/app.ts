@@ -11,7 +11,26 @@ import { metrics } from './metrics.js';
 export const app: Express = express();
 export const orchestrator = new Orchestrator();
 
-app.use(cors({ origin: process.env.WEB_URL || 'http://localhost:3000' }));
+// Build allowed origins from WEB_URL (comma-separated) and auto-allow Vercel preview URLs
+const allowedOrigins: string[] = (process.env.WEB_URL || 'http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow requests with no origin (server-to-server, curl, health checks)
+      if (!origin) return callback(null, true);
+      // Exact match against configured origins
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Allow Vercel preview deployments (*.vercel.app)
+      if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 const limiter = rateLimit({
