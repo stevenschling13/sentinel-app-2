@@ -400,8 +400,8 @@ if ($hasMainRef) {
             $remoteHash = git rev-parse "origin/main:$lockfile" 2>$null
 
             if ($LASTEXITCODE -ne 0) {
-                Record-Warn "$lockfile -- not found on origin/main (new file?)"
-                $depResults += @{ file = $lockfile; status = "new" }
+                Record-Warn "$lockfile -- not found on origin/main [new file]"
+                $depResults += @{ file = $lockfile; status = 'new' }
             }
             elseif ($localHash -eq $remoteHash) {
                 Record-Pass "$lockfile -- matches origin/main"
