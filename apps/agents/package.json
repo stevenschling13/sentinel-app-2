@@ -20,7 +20,7 @@
     "@upstash/redis": "^1.37.0",
     "ai": "^6.0.134",
     "cors": "^2.8.5",
-    "dotenv": "^16",
+    "dotenv": "^17",
     "express": "^4",
     "express-rate-limit": "^8.3.1",
     "node-cron": "^4",
