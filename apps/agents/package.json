@@ -14,11 +14,11 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.63",
+    "@ai-sdk/anthropic": "^3.0.64",
     "@sentinel/shared": "workspace:*",
     "@supabase/supabase-js": "^2",
     "@upstash/redis": "^1.37.0",
-    "ai": "^6.0.134",
+    "ai": "^6.0.141",
     "cors": "^2.8.5",
     "dotenv": "^17",
     "express": "^5",
@@ -32,10 +32,10 @@
     "@types/node": "^25",
     "@types/node-cron": "^3",
     "@types/supertest": "^7",
-    "@vitest/coverage-v8": "^4.1.0",
+    "@vitest/coverage-v8": "^4.1.2",
     "supertest": "^7",
     "tsx": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.2"
   }
 }
